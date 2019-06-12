@@ -25,7 +25,7 @@ import java.util.Properties;
  */
 
 public class DataCleanJava {
-    public void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 //        指定kafka Source
@@ -63,7 +63,7 @@ public class DataCleanJava {
             public void flatMap1(String value, Collector out) throws Exception {
                 JSONObject jsonObject = JSONObject.parseObject(value);
                 String dt = jsonObject.getString("dt");
-                String countryCode = jsonObject.getString("countrycode");
+                String countryCode = jsonObject.getString("countryCode");
 //                获取大区
                 String area = allMap.get(countryCode);
                 JSONArray jsonArray = jsonObject.getJSONArray("data");
