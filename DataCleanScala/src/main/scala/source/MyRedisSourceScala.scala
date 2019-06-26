@@ -1,13 +1,14 @@
 package source
 
-import org.apache.flink.streaming.api.functions.source.{RichSourceFunction, SourceFunction}
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.Jedis
 import redis.clients.jedis.exceptions.JedisConnectionException
+
 import scala.collection.mutable
 
 
-class MyRedisSourceScala extends RichSourceFunction[mutable.Map[String,String]] {
+class MyRedisSourceScala extends SourceFunction[mutable.Map[String,String]] {
   val logger = LoggerFactory.getLogger("MyRedisSourceScala")
   val SLEEP_MILLION = 60000
   var isRunning = true
@@ -49,7 +50,7 @@ class MyRedisSourceScala extends RichSourceFunction[mutable.Map[String,String]] 
 
   override def cancel() = {
     isRunning = false
-    if(jedis ！= null){
+    if(jedis != null){
       jedis.close()
     }
   }

@@ -13,7 +13,7 @@ import source.MyRedisSourceScala
 
 import scala.collection.mutable
 
-class DataCleanScala {
+object DataCleanScala {
   def main(args: Array[String]): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -29,6 +29,7 @@ class DataCleanScala {
 
 
     //        指定kafka Source
+    import org.apache.flink.api.scala._
     val topic = "allData"
     val brokerList = "localhost:9092"
     val prop = new Properties
@@ -37,9 +38,9 @@ class DataCleanScala {
     //      设置事务超时时间
     prop.setProperty("transaction.timeout.ms", 60000 * 15 + "")
 
-    val myConsumer = new FlinkKafkaConsumer011[String]("hello",new SimpleStringSchema(),prop)
+    val myConsumer = new FlinkKafkaConsumer011[String](topic,new SimpleStringSchema(),prop)
     //获取kafka中的数据
-    val data = env.addSource(myConsumer)
+    val data = env.addSource  (myConsumer)
 
 //   最新的国家码与大区的对应关系
     val mapData = env.addSource(new MyRedisSourceScala).broadcast//可以把数据发送到后面的算子的所有并行实例中
@@ -68,21 +69,17 @@ class DataCleanScala {
       override def flatMap2(value: mutable.Map[String, String], out: Collector[String]) = {
         this.allMsp = value
       }
-
-      val outTopic = "allDataClean"
-      val outProp = new Properties()
-      outProp.setProperty("bootstrap.servers", "localhost:9092")
-      //      设置事务超时时间
-      outProp.setProperty("transaction.timeout.ms", 60000 * 15 + "")
-
-      val myProducer = new FlinkKafkaProducer011[String](outTopic, new KeyedSerializationSchemaWrapper[String](new SimpleStringSchema), outProp, FlinkKafkaProducer011.Semantic.EXACTLY_ONCE)
-
-      resData.addSink(myProducer)
-
-      env.execute("DataCleanScala")
-
     })
+    val outTopic = "allDataClean"
+    val outProp = new Properties()
+    outProp.setProperty("bootstrap.servers", "localhost:9092")
+    //      设置事务超时时间
+    outProp.setProperty("transaction.timeout.ms", 60000 * 15 + "")
 
+    val myProducer = new FlinkKafkaProducer011[String](outTopic, new KeyedSerializationSchemaWrapper[String](new SimpleStringSchema), outProp, FlinkKafkaProducer011.Semantic.EXACTLY_ONCE)
+    resData.addSink(myProducer)
+    //add comment make is lazy
+    env.execute("DataCleanScala")
   }
 
 }
