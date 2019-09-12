@@ -14,7 +14,7 @@ import java.util.logging.Logger;
  * 在Redis中初始化维度数据
  *
  *
- * Redis中存储大区与国家的关系
+ * Redis中存储大区与国家的关系,key 为大区，valeur为对应的国家
  *
  * hset areas AREA_US US
  * hset areas AREA_CJ TW,HK
@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
 
     private boolean Running = true;
-    private Jedis myjedis = null;
+    private Jedis myjedis = new Jedis("localhost",6379);
     private final long SLEEP_MILLION = 5000;
     private org.slf4j.Logger logger =  LoggerFactory.getLogger(DimSource4Redis.class);
 
@@ -37,10 +37,9 @@ public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
     public void run(SourceContext<HashMap<String, String>> ctx) throws Exception {
 
 
-        this.myjedis = new Jedis("localhost",6379);
         String key = "";
         String value = "";
-//        存储所有大区与国家关系的Map
+//        存储所有国家与大区关系的Map
         HashMap<String,String>  keyValueMap = new HashMap<String,String>();
 
         while (Running){
@@ -48,9 +47,13 @@ public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
                 keyValueMap.clear();
                 Map<String,String> areas = myjedis.hgetAll("areas");
                 for(Map.Entry<String,String> entry:areas.entrySet()){
+//                  获取大区
                     key = entry.getKey();
+//                  获取国家字符串
                     value = entry.getValue();
+//                  对国家字符串通过,切分
                     String[] splitArray = value.split(",");
+//                  将切分后的国家做为key,对应的大区做为value，组装成新的Map
                     for(String split:splitArray){
                         keyValueMap.put(split,key);
                     }
@@ -64,7 +67,7 @@ public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
 
                 Thread.sleep(this.SLEEP_MILLION);
             }catch (JedisConnectionException ex){
-                logger.error("Redis连接获取异常",ex.getCause());
+                logger. ("Redis连接获取异常",ex.getCause());
                 this.myjedis = new Jedis("localhost",6379);
             }catch (Exception e){
                 logger.error("Source 数据源异常",e.getCause());

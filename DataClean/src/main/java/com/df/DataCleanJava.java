@@ -64,7 +64,7 @@ public class DataCleanJava {
                 JSONObject jsonObject = JSONObject.parseObject(value);
                 String dt = jsonObject.getString("dt");
                 String countryCode = jsonObject.getString("countryCode");
-//                获取大区
+//              通过国家获取大区
                 String area = allMap.get(countryCode);
                 JSONArray jsonArray = jsonObject.getJSONArray("data");
                 for(int i = 0; i<jsonArray.size();i++){
@@ -88,6 +88,7 @@ public class DataCleanJava {
         outProp.setProperty("bootstrap.servers","localhost:9092");
 //      设置事务超时时间
         outProp.setProperty("transaction.timeout.ms",60000*15+"");
+
 
 
         FlinkKafkaProducer011<String> myProducer = new FlinkKafkaProducer011<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp,FlinkKafkaProducer011.Semantic.EXACTLY_ONCE);

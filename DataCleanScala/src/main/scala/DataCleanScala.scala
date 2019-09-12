@@ -9,7 +9,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer011, FlinkKafkaProducer011}
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper
 import org.apache.flink.util.Collector
-import source.MyRedisSourceScala
+import DimSource.MyRedisSourceScala
 
 import scala.collection.mutable
 
@@ -40,16 +40,16 @@ object DataCleanScala {
 
     val myConsumer = new FlinkKafkaConsumer011[String](topic,new SimpleStringSchema(),prop)
     //获取kafka中的数据
-    val data = env.addSource  (myConsumer)
+    val data = env.addSource(myConsumer)
 
 //   最新的国家码与大区的对应关系
     val mapData = env.addSource(new MyRedisSourceScala).broadcast//可以把数据发送到后面的算子的所有并行实例中
 
     val resData:DataStream[String] = data.connect(mapData).flatMap(new CoFlatMapFunction[String,mutable.Map[String,String],String] {
-      //存储国家和大区的关系
+      //存储国家和大区的关系 此变量在两个函数间共享
       var allMsp = mutable.Map[String, String]()
 
-
+//    处理kafka中的数据
       override def flatMap1(value: String, out: Collector[String]) = {
           val jSONObject = JSON.parseObject(value)
           val dt = jSONObject.getString("dt")
@@ -65,7 +65,7 @@ object DataCleanScala {
             out.collect(jsonObject1.toString)
           }
       }
-
+//处理Redis中的维度数据
       override def flatMap2(value: mutable.Map[String, String], out: Collector[String]) = {
         this.allMsp = value
       }
