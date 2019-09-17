@@ -15,9 +15,14 @@ import java.util.Random;
 public class kafkaProducer {
 
     public static void main(String[] args) throws Exception{
+
+        final String broker_list = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";//localhost:9092
+
         Properties prop = new Properties();
         //指定kafka broker地址
-        prop.put("bootstrap.servers", "localhost:9092");
+        prop.put("bootstrap.servers", broker_list);
+//      指定 ack的机制
+        prop.put("request.required.acks", "1");
         //指定key value的序列化方式
         prop.put("key.serializer", StringSerializer.class.getName());
         prop.put("value.serializer", StringSerializer.class.getName());
