@@ -1,5 +1,7 @@
 package DimSource
 
+
+
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.Jedis
@@ -15,8 +17,8 @@ class DimSource4RedisScalaCheck extends SourceFunction[mutable.Map[String,Array[
 
   override def run(ctx: SourceFunction.SourceContext[mutable.Map[String, Array[String]]]) = {
     this.jedis = new Jedis("localhost",6379)
-    import scala.collection.JavaConversions.mapAsScalaMap
     var orgMap = mutable.Map[String,String]()
+    import scala.collection.JavaConversions.mapAsScalaMap
     orgMap = jedis.hgetAll("organization")
     var orgDimMap = mutable.Map[String,Array[String]]()
     for (key <- orgMap.keys.toList) {

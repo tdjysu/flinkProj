@@ -1,5 +1,7 @@
 package com.df;
 
+
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -16,7 +18,7 @@ public class kafkaProducer {
 
     public static void main(String[] args) throws Exception{
 
-        final String broker_list = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";//localhost:9092
+        final String broker_list = "localhost:9092";//localhost:9092
 
         Properties prop = new Properties();
         //指定kafka broker地址

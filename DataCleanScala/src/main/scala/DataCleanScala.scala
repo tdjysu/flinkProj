@@ -31,7 +31,6 @@ object DataCleanScala {
 
 
     //        指定kafka Source
-    import org.apache.flink.api.scala._
     val topic = "allData"
     val brokerList = "localhost:9092"
     val prop = new Properties

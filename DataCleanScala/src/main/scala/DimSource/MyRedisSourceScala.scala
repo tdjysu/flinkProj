@@ -19,8 +19,8 @@ class MyRedisSourceScala extends SourceFunction[mutable.Map[String,String]] {
 
   override def run(ctx: SourceFunction.SourceContext[mutable.Map[String, String]]) = {
     this.jedis = new Jedis("localhost",6379)
-    import scala.collection.JavaConversions.mapAsScalaMap
     var keyValueMap = mutable.Map[String,String]()
+    import scala.collection.JavaConversions.mapAsScalaMap
     while (isRunning){
       try {
         keyValueMap.clear()
