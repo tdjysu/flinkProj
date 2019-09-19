@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
 
     private boolean Running = true;
-    private Jedis myjedis = new Jedis("localhost",6379);
+    private static Jedis myjedis = new Jedis("localhost",6379);
     private final long SLEEP_MILLION = 5000;
     private org.slf4j.Logger logger =  LoggerFactory.getLogger(DimSource4Redis.class);
 
@@ -67,7 +67,7 @@ public class DimSource4Redis implements SourceFunction<HashMap<String,String>> {
 
                 Thread.sleep(this.SLEEP_MILLION);
             }catch (JedisConnectionException ex){
-                logger.error ("Redis连接获取异常",ex.getCause());
+                logger.error("Redis连接获取异常",ex.getCause());
                 this.myjedis = new Jedis("localhost",6379);
             }catch (Exception e){
                 logger.error("Source 数据源异常",e.getCause());
