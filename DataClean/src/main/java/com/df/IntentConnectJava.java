@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.df.DimSource.DimSource4Redis;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -20,13 +19,13 @@ import org.apache.flink.util.Collector;
 import java.util.HashMap;
 import java.util.Properties;
 
-public class StreamingConnectCheckJava {
+public class IntentConnectJava {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 //        指定kafka Source
-        String topic = "intent_t1";
+        String topic = "allData";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
