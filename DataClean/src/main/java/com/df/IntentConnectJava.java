@@ -3,6 +3,7 @@ package com.df;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.df.DimSource.DimSource4Redis;
+import com.df.DimSource.OrgaRedisSourceJava;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.configuration.Configuration;
@@ -25,7 +26,7 @@ public class IntentConnectJava {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 //        指定kafka Source
-        String topic = "allData";
+        String topic = "intent_t1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
@@ -47,11 +48,11 @@ public class IntentConnectJava {
         DataStream data = env.addSource(myConsumer);
 
 //      从Redis中获取维度数据
-        DataStream<HashMap<String, String>> dimData = env.addSource( new DimSource4Redis()).broadcast();
+        DataStream<HashMap<String, String[]>> dimData = env.addSource( new OrgaRedisSourceJava()).broadcast();
         // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
        DataStream<String> resData =  data.connect(dimData)
                 .flatMap(new ControlFunction());
-        String outTopic = "allDataClean";
+        String outTopic = "intent_t2";
         Properties outProp = new Properties();
         outProp.setProperty("bootstrap.servers", "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092");
 //      设置事务超时时间
@@ -64,11 +65,11 @@ public class IntentConnectJava {
         env.execute("StreamingConnectCheckJava Job");
     }
 
-    public static class ControlFunction extends RichCoFlatMapFunction<String, HashMap<String,String>, String> {
+    public static class ControlFunction extends RichCoFlatMapFunction<String, HashMap<String,String[]>, String> {
         // key的状态用Boolean值来保存，是被两个流共享的
         // Boolean的blocked用于记住单词是否在control流中，而且这些单词会从streamOfWords流中被过滤掉
-        private ValueState<Boolean> blocked;
-        private HashMap<String,String> valueMap = new HashMap();
+        // 营业部维度关系
+        HashMap<String,String[]>  orgDimMap = new HashMap<String,String[]>();
         @Override
         public void open(Configuration config) {
 //            blocked = getRuntimeContext().getState(new ValueStateDescriptor<>("blocked", Boolean.class));
@@ -77,28 +78,33 @@ public class IntentConnectJava {
         // control.connect(streamOfWords)顺序决定了control流中的元素会被Flink运行时执行flatMap1时传入处理；streamOfWords流中的元素会被Flink运行时执行flatMap2时传入处理
         @Override
         public void flatMap1(String control_value, Collector<String> out) throws Exception {
+//System.out.println(control_value);
             JSONObject jsonObject = JSONObject.parseObject(control_value);
-            String dt = jsonObject.getString("dt");
-            String countryCode = jsonObject.getString("countryCode");
-//              通过国家获取大区
-            String area = valueMap.get(countryCode);
-            JSONArray jsonArray = jsonObject.getJSONArray("data");
-            for(int i = 0; i<jsonArray.size();i++){
-                JSONObject jsonObject1 = jsonArray.getJSONObject(i);
-                jsonObject1.put("area",area);
-                jsonObject1.put("dt",dt);
-                out.collect(jsonObject1.toJSONString());
+            String deptcode = jsonObject.getString("strdeptcode");
 
-            }
-            System.out.println(control_value);
+//          通过营业部编码获取其它组织机构信息
+            String[] orgArray = orgDimMap.get(deptcode);
+            String detpname = orgArray[0];
+            String busiAreaCode = orgArray[1];
+            String busiAreaName = orgArray[2];
+            String adminAreaCode = orgArray[3];
+            String adminAreaName = orgArray[4];
+            jsonObject.put("detpname",detpname);
+            jsonObject.put("busiAreaCode",busiAreaCode);
+            jsonObject.put("busiAreaName",busiAreaName);
+            jsonObject.put("adminAreaCode",adminAreaCode);
+            jsonObject.put("adminAreaName",adminAreaName);
+            out.collect(jsonObject.toJSONString());
+            System.out.println(jsonObject.toJSONString());
+
         }
 
         @Override
-        public void flatMap2(HashMap<String,String> value, Collector<String> out) throws Exception {
+        public void flatMap2(HashMap<String,String[]> value, Collector<String> out) throws Exception {
 //            if (blocked.value() == null) {
 //                out.collect(data_value);
 //            }
-            this.valueMap = value;
+            this.orgDimMap = value;
         }
     }
 

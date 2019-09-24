@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.df.DimSource.DimSource4Redis;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -78,6 +77,8 @@ public class StreamingConnectCheckJava {
         // control.connect(streamOfWords)顺序决定了control流中的元素会被Flink运行时执行flatMap1时传入处理；streamOfWords流中的元素会被Flink运行时执行flatMap2时传入处理
         @Override
         public void flatMap1(String control_value, Collector<String> out) throws Exception {
+            System.out.println(control_value);
+
             JSONObject jsonObject = JSONObject.parseObject(control_value);
             String dt = jsonObject.getString("dt");
             String countryCode = jsonObject.getString("countryCode");
@@ -91,7 +92,6 @@ public class StreamingConnectCheckJava {
                 out.collect(jsonObject1.toJSONString());
 
             }
-            System.out.println(control_value);
         }
 
         @Override
