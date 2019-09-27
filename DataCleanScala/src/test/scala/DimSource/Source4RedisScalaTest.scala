@@ -1,4 +1,4 @@
-package main.scala.DimSource
+package DimSource
 
 object Source4RedisScalaTest {
 

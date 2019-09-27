@@ -1,18 +1,11 @@
 import java.util.Properties
-import java.util.stream.Collector
 
-import DimSource.MyRedisSourceScala
-import com.alibaba.fastjson.JSON
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.streaming.api.CheckpointingMode
-import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.CheckpointConfig
-import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer011, FlinkKafkaProducer011}
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper
-
-import scala.collection.mutable
 
 object DataCleanScala {
   def main(args: Array[String]): Unit = {
@@ -41,7 +34,7 @@ object DataCleanScala {
 
     val myConsumer = new FlinkKafkaConsumer011[String](topic,new SimpleStringSchema(),prop)
     //获取kafka中的数据
-    val data = env.addSource(myConsumer)
+/*    val data = env.addSource(myConsumer)
 
 //   最新的国家码与大区的对应关系
      val mapData = env.addSource(new MyRedisSourceScala).broadcast//可以把数据发送到后面的算子的所有并行实例中
@@ -71,7 +64,7 @@ object DataCleanScala {
       override def flatMap2(value: mutable.Map[String, String], out: Collector[String]) = {
         this.allMsp = value
       }
-    })
+    })*/
     val outTopic = "allDataClean"
     val outProp = new Properties()
     outProp.setProperty("bootstrap.servers", "localhost:9092")
@@ -79,7 +72,7 @@ object DataCleanScala {
     outProp.setProperty("transaction.timeout.ms", 60000 * 15 + "")
 
     val myProducer = new FlinkKafkaProducer011[String](outTopic, new KeyedSerializationSchemaWrapper[String](new SimpleStringSchema), outProp, FlinkKafkaProducer011.Semantic.EXACTLY_ONCE)
-    resData.addSink(myProducer)
+ //   resData.addSink(myProducer)
     //add comment make is lazy
     env.execute("DataCleanScala")
   }

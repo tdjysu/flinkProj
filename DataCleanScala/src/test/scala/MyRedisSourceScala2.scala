@@ -1,5 +1,3 @@
-package DimSource
-
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.Jedis
@@ -8,34 +6,30 @@ import redis.clients.jedis.exceptions.JedisConnectionException
 import scala.collection.mutable
 
 
-class OrgaRedisSourceScala extends SourceFunction[mutable.Map[String,Array[String]]] {
+class MyRedisSourceScala2 extends SourceFunction[mutable.Map[String,String]] {
   val logger = LoggerFactory.getLogger("MyRedisSourceScala")
   val SLEEP_MILLION = 60000
   var isRunning = true
   var jedis:Jedis =null
 
-  override def run(ctx: SourceFunction.SourceContext[mutable.Map[String, Array[String]]]) = {
+  override def run(ctx: SourceFunction.SourceContext[mutable.Map[String, String]]) = {
     this.jedis = new Jedis("localhost",6379)
+    var keyValueMap = mutable.Map[String,String]()
     import scala.collection.JavaConversions.mapAsScalaMap
-//  初始化从Redis中获取的Redis Map
-    var redis_map = mutable.Map[String,String]()
-    //  初始化组织机构维度Map,
-    var orga_map = mutable.Map[String,Array[String]]()
     while (isRunning){
       try {
-        orga_map.clear()
-        redis_map.clear()
-//      从Redis中获取组织机构维度Map
-        redis_map = jedis.hgetAll("organization_dim")
+        keyValueMap.clear()
+        keyValueMap = jedis.hgetAll("areas")
 
-        for (key <- redis_map.keys.toList) {
-          val value = redis_map.get(key).get
+        for (key <- keyValueMap.keys.toList) {
+          val value = keyValueMap.get(key).get
           val splits = value.split(",")
-          orga_map += (key -> splits)
-
+          for (split <- splits) {
+            keyValueMap += (key -> split)
+          }
         }
-        if (orga_map.nonEmpty) {
-          ctx.collect(orga_map)
+        if (keyValueMap.nonEmpty) {
+          ctx.collect(keyValueMap)
         } else {
           logger.warn("The Dim Data from Redis is Empty")
         }
