@@ -41,16 +41,16 @@ object IntentCleanScala {
     //获取kafka中的数据
     val data = env.addSource(myConsumer)
 
-//   最新的国家码与大区的对应关系
+//   最新的组织机构对应关系
     val mapData = env.addSource(new OrgaRedisSourceScala).broadcast//可以把数据发送到后面的算子的所有并行实例中
 
 
 //    data.connect(mapData).flatMap(new CoFlatMapFunction[String,] {})
     val resData:DataStream[String] = data.connect(mapData).flatMap(new CoFlatMapFunction[String,mutable.Map[String,Array[String]],String] {
-      //存储国家和大区的关系 此变量在两个函数间共享
+      //存储组织机构维度关系 此变量在两个函数间共享
       var orgaMsp = mutable.Map[String, Array[String]]()
 
-//    处理kafka中的数据
+//    处理kafka中的数据,根据营业部编码补充组织机构信息
       override def flatMap1(value: String, out: Collector[String]) = {
           val jSONObject = JSON.parseObject(value)
           val deptcode = jSONObject.getString("strdeptcode")
