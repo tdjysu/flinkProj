@@ -1,9 +1,6 @@
 package com.dafy;
 
-
 import com.alibaba.fastjson.JSONObject;
-
-
 import com.dafy.RedisMapper.MyRedisMapper;
 import com.dafy.watermark.IntentWaterMark;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -27,21 +24,16 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DataReport {
 
     Logger logger = LoggerFactory.getLogger(DataReport.class);
-    public static void main(String[] args){
+    public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
 //       设置使用EventTime
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
-
-
         String inTopic = "intent_t1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
@@ -53,7 +45,6 @@ public class DataReport {
 //        创建RedisSink
         RedisSink<Tuple3<String,String,String>> redisSink = new RedisSink<>(conf,new MyRedisMapper());
 
-
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<>(inTopic,new SimpleStringSchema(),prop);
 
         /**
@@ -64,7 +55,6 @@ public class DataReport {
          *  "lamount":1807303,"deptname":"微金武汉市营业部","busiAreaName":"华中中心"}
          */
 
-
         DataStreamSource<String> kafkaData = env.addSource(kafkaConsumer);
         DataStream<Tuple3<Long,String,Integer>> mapData = kafkaData.map(new MapFunction<String, Tuple3<Long,String,Integer>>() {
             long eventTime = 0;
@@ -74,9 +64,9 @@ public class DataReport {
             public Tuple3<Long, String, Integer> map(String kafkaValue) throws Exception {
                 JSONObject jsonObject = JSONObject.parseObject(kafkaValue);
 
-                eventTime = jsonObject.getJSONObject("strloandate").getLong("value");
-                deptCode = jsonObject.getJSONObject("strdeptcode").getString("value");
-                lamount = jsonObject.getJSONObject("lamount").getInteger("value");
+                eventTime = jsonObject.getLong("strloandate");
+                deptCode = jsonObject.getString("strdeptcode");
+                lamount = jsonObject.getInteger("lamount");
                 return new Tuple3<Long,String,Integer>(eventTime,deptCode,lamount);
             }
         });
@@ -100,7 +90,7 @@ public class DataReport {
          */
         SingleOutputStreamOperator<Tuple3<String,String,String>> resultData = filterData.assignTimestampsAndWatermarks( new IntentWaterMark())
                 .keyBy(1)//些处定义了统计分组的字段
-                .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
                 .allowedLateness(Time.seconds(5))//允许迟到5秒
                 .sideOutputLateData(outputTag)//记录迟到太久的数据
                 .apply(new WindowFunction<Tuple3<Long, String, Integer>, Tuple3<String,String,String>, Tuple, TimeWindow>() {
@@ -118,6 +108,8 @@ public class DataReport {
                             arrayList.add(next.f0);
                             count++;
                         }
+
+//System.out.println(Thread.currentThread().getId() + "窗口触发 Count--> " + count);
 //                      对时间List排序
                         Collections.sort(arrayList);
                         arrayList.get(arrayList.size() - 1);
@@ -125,16 +117,17 @@ public class DataReport {
                         String evtime = sdf.format(new Date(arrayList.get(arrayList.size() - 1)));
 //                      组装结果
 
+System.out.println("事件时间--> " +" "+  evtime + "Count--> " + count);
                         Tuple3<String,String,String> res = new Tuple3<>(evtime,deptcode,count+"");
-
                         out.collect(res);
                     }
                 });
 
         //获取迟到太久的数据
-        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
+//        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
 //      将迟到的数据存储到Kafka
 //        sideOutput.addSink();
         resultData.addSink(redisSink);
+        env.execute(DataReport.class.getName());
     }
 }
