@@ -48,6 +48,12 @@ public class DataCleanReport {
 //       kafka消费配置
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<>(inTopic,new SimpleStringSchema(),prop);
 
+
+
+
+
+
+
         /**
          * 获取Kafka中的数据
          *
