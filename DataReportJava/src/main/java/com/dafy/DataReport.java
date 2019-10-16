@@ -11,6 +11,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -20,10 +21,12 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.redis.RedisSink;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
+
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -34,7 +37,7 @@ public class DataReport {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 //       设置使用EventTime
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        String inTopic = "intent_t1";
+        String inTopic = "intent_t2";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
@@ -96,7 +99,7 @@ public class DataReport {
                 .apply(new WindowFunction<Tuple3<Long, String, Integer>, Tuple3<String,String,String>, Tuple, TimeWindow>() {
                     @Override
                     public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple3<Long, String, Integer>> inputVal, Collector<Tuple3<String,String, String>> out) throws Exception {
-                       //获取分组字段信息
+                        //获取分组字段信息
                         String deptcode = tuple.getField(0).toString();
 //                      存储时间，获取最后数据的时间
                         ArrayList<Long> arrayList = new ArrayList();
@@ -113,15 +116,16 @@ public class DataReport {
 //                      对时间List排序
                         Collections.sort(arrayList);
                         arrayList.get(arrayList.size() - 1);
-                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                         String evtime = sdf.format(new Date(arrayList.get(arrayList.size() - 1)));
 //                      组装结果
 
-System.out.println("事件时间--> " +" "+  evtime + "  Count--> " + count);
+                        System.out.println("事件时间--> " +" "+  evtime + "  Count--> " + count);
                         Tuple3<String,String,String> res = new Tuple3<>(evtime,deptcode,count+"");
                         out.collect(res);
                     }
                 });
+
 
         //获取迟到太久的数据
 //        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);

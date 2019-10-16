@@ -118,6 +118,19 @@
                 <artifactId>druid</artifactId>
                 <version>1.0.14</version>
             </dependency>
+
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>5.1.25</version>
+            </dependency>
+
+
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-connector-elasticsearch6_2.11</artifactId>
+                <version>1.6.1</version>
+            </dependency>
         </dependencies>
 
     </dependencyManagement>

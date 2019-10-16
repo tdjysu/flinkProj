@@ -1,12 +1,14 @@
 package com.dafy;
 
 import com.alibaba.fastjson.JSONObject;
+import com.dafy.Bean.ReportDeptBean;
 import com.dafy.RedisMapper.MyRedisMapper;
-import com.dafy.watermark.IntentWaterMark;
+import com.dafy.sink.MysqlSink;
+import com.dafy.watermark.IntentReportWaterMark;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -17,14 +19,19 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.redis.RedisSink;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.Requests;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -35,7 +42,7 @@ public class DataCleanReport {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 //       设置使用EventTime
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        String inTopic = "intent_t1";
+        String inTopic = "intent_t2";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
@@ -49,11 +56,6 @@ public class DataCleanReport {
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<>(inTopic,new SimpleStringSchema(),prop);
 
 
-
-
-
-
-
         /**
          * 获取Kafka中的数据
          *
@@ -63,57 +65,89 @@ public class DataCleanReport {
          */
 
         DataStreamSource<String> kafkaData = env.addSource(kafkaConsumer);
-        DataStream<Tuple3<Long,String,Integer>> mapData = kafkaData.map(new MapFunction<String, Tuple3<Long,String,Integer>>() {
+        DataStream<ReportDeptBean> mapData = kafkaData.map(new MapFunction<String,ReportDeptBean>() {
             long eventTime = 0;
             String deptCode="";
-            Integer lamount;
+            String deptName = "";
+            String busiAreaCode = "";
+            String busiAreaName = "";
+            String adminAreaCode = "";
+            String adminAreaName = "";
+            String fundcode = "";
+            Integer lendCnt = 0;
+            Integer lamount = 0;
+
+            ReportDeptBean kafkaDataBean  ;
+
             @Override
-            public Tuple3<Long, String, Integer> map(String kafkaValue) throws Exception {
+            public ReportDeptBean map(String kafkaValue) throws Exception {
                 JSONObject jsonObject = JSONObject.parseObject(kafkaValue);
 
                 eventTime = jsonObject.getLong("strloandate");
                 deptCode = jsonObject.getString("strdeptcode");
+                deptName = jsonObject.getString("detpname");
+                busiAreaCode = jsonObject.getString("busiAreaCode");
+                busiAreaName = jsonObject.getString("busiAreaName");
+                adminAreaCode = jsonObject.getString("adminAreaCode");
+                adminAreaName = jsonObject.getString("adminAreaName");
+                fundcode = jsonObject.getString("nborrowmode");
                 lamount = jsonObject.getInteger("lamount");
-                return new Tuple3<Long,String,Integer>(eventTime,deptCode,lamount);
+
+                kafkaDataBean = new ReportDeptBean(eventTime,deptCode,deptName,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lendCnt,lamount);
+                return kafkaDataBean;
             }
         });
 //    过滤时间异常的数据
-        DataStream<Tuple3<Long,String,Integer>> filterData = mapData.filter(new FilterFunction<Tuple3<Long, String, Integer>>() {
+        DataStream<ReportDeptBean> filterData = mapData.filter(new FilterFunction<ReportDeptBean>() {
             @Override
-            public boolean filter(Tuple3<Long, String, Integer> value) throws Exception {
+            public boolean filter(ReportDeptBean value) throws Exception {
                 boolean flag = true;
-                if(value.f0 == 0){
+                if(value.getEventTime() == 0){
                     flag = false;
                 }
                 return flag;
             }
         });
 //保存迟到太久的数据
-         OutputTag<Tuple3<Long,String,Integer>> outputTag = new OutputTag<Tuple3<Long,String,Integer>>("late-data"){};
-
+         OutputTag<ReportDeptBean> outputTag = new OutputTag<ReportDeptBean>("late-data"){};
 
         /**
          * 窗口统计
          */
-        SingleOutputStreamOperator<Tuple3<String,String,String>> resultData = filterData.assignTimestampsAndWatermarks( new IntentWaterMark())
-                .keyBy(1)//些处定义了统计分组的字段
+        SingleOutputStreamOperator<ReportDeptBean> resultData = filterData.assignTimestampsAndWatermarks( new IntentReportWaterMark())
+                .keyBy(ReportDeptBean::getDeptCode)//些处定义了统计分组的字段
                 .window(TumblingEventTimeWindows.of(Time.seconds(10)))
                 .allowedLateness(Time.seconds(5))//允许迟到5秒
                 .sideOutputLateData(outputTag)//记录迟到太久的数据
-                .apply(new WindowFunction<Tuple3<Long, String, Integer>, Tuple3<String,String,String>, Tuple, TimeWindow>() {
+                .apply(new WindowFunction<ReportDeptBean, ReportDeptBean,String, TimeWindow>() {
                     @Override
-                    public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple3<Long, String, Integer>> inputVal, Collector<Tuple3<String,String, String>> out) throws Exception {
+                    public void apply(String strkey, TimeWindow timeWindow, Iterable<ReportDeptBean> inputVal, Collector<ReportDeptBean> out) throws Exception {
                        //获取分组字段信息
-                        String deptcode = tuple.getField(0).toString();
+                        String deptcode = strkey;
 //                      存储时间，获取最后数据的时间
                         ArrayList<Long> arrayList = new ArrayList();
-                        long count = 0;
+                        int lendCnt = 0;//借款笔数
+                        int lendAmt = 0;//借款金额
+                        String deptName = "";
+                        String busiAreaCode = "";
+                        String busiAreaName = "";
+                        String adminAreaCode = "";
+                        String adminAreaName = "";
+                        String fundcode = "";
 
-                        Iterator<Tuple3<Long,String,Integer>> it =inputVal.iterator();
+                        Iterator<ReportDeptBean> it =inputVal.iterator();
                         while (it.hasNext()){
-                            Tuple3<Long,String,Integer>  next = it.next();
-                            arrayList.add(next.f0);
-                            count++;
+                            ReportDeptBean  next = it.next();
+                            arrayList.add(next.getEventTime());
+                            deptName = next.getDeptName();
+                            busiAreaCode = next.getBusiAreaCode();
+                            busiAreaName = next.getBusiAreaName();
+                            adminAreaCode = next.getAdminAreaCode();
+                            adminAreaName = next.getAdminAreaName();
+                            fundcode = next.getFundcode();
+                            lendCnt++;//计算借款笔数
+                            lendAmt+=next.getLamount();//计算借款金额
+//System.out.println( "统计时间->" + next.getEventTime() + "  lendAmt = " + next.getLamount());
                         }
 
 //System.out.println(Thread.currentThread().getId() + "窗口触发 Count--> " + count);
@@ -122,10 +156,19 @@ public class DataCleanReport {
                         arrayList.get(arrayList.size() - 1);
                          SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                         String evtime = sdf.format(new Date(arrayList.get(arrayList.size() - 1)));
+                        Long leventtime = arrayList.get(arrayList.size() - 1);
 //                      组装结果
 
-System.out.println("事件时间--> " +" "+  evtime + "  Count--> " + count);
-                        Tuple3<String,String,String> res = new Tuple3<>(evtime,deptcode,count+"");
+System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " " + deptName
+                    + " 中心-> " + busiAreaCode + " " + busiAreaName
+                    + " 区域-> " + adminAreaCode + " " + adminAreaName
+                    + " 资方-> " + fundcode
+                    + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt
+                  );
+
+
+                        ReportDeptBean res = new ReportDeptBean(leventtime,deptcode,deptName,busiAreaCode,busiAreaName,
+                                adminAreaCode,adminAreaName,fundcode, lendCnt,lendAmt);
                         out.collect(res);
                     }
                 });
@@ -134,7 +177,57 @@ System.out.println("事件时间--> " +" "+  evtime + "  Count--> " + count);
 //        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
 //      将迟到的数据存储到Kafka
 //        sideOutput.addSink();
-//        resultData.addSink(redisSink);
+//      将结果数据写入 Mysql
+        resultData.addSink( new MysqlSink());
+
+//      将结果数据写入 ES
+
+        List<HttpHost> httpHosts = new ArrayList<>();
+        httpHosts.add(new HttpHost("192.168.8.209", 9200, "http"));
+
+// use a ElasticsearchSink.Builder to create an ElasticsearchSink
+        ElasticsearchSink.Builder<ReportDeptBean> esSinkBuilder = new ElasticsearchSink.Builder<>(
+                httpHosts,
+                new ElasticsearchSinkFunction<ReportDeptBean>() {
+                    public IndexRequest createIndexRequest(ReportDeptBean element) {
+                        Map<String, String> json = new HashMap<>();
+                        json.put("eventTime", element.getEventTime()+"");
+                        json.put("deptcode",element.getDeptCode());
+                        json.put("deptname",element.getDeptName());
+                        json.put("busiAreaCode",element.getBusiAreaCode());
+                        json.put("busiAreaName",element.getBusiAreaName());
+                        json.put("adminAreaCode",element.getAdminAreaCode());
+                        json.put("adminAreaName",element.getAdminAreaName());
+                        json.put("fundcode",element.getFundcode());
+                        json.put("lendCnt",element.getLendCnt()+"");
+                        json.put("lamount",element.getLamount()+"");
+
+
+                        return Requests.indexRequest()
+                                .index("intentreport_index")
+                                .type("intenttype")
+                                .source(json);
+                    }
+                    @Override
+                    public void process(ReportDeptBean element, RuntimeContext ctx, RequestIndexer indexer) {
+                        indexer.add(createIndexRequest(element));
+                    }
+                }
+        );
+
+// configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
+        esSinkBuilder.setBulkFlushMaxActions(1);
+
+// provide a RestClientFactory for custom configuration on the internally created REST client
+//        esSinkBuilder.setRestClientFactory(
+//                restClientBuilder -> {
+//                    restClientBuilder.setDefaultHeaders(...)
+//                    restClientBuilder.setMaxRetryTimeoutMillis(...)
+//                    restClientBuilder.setPathPrefix(...)
+//                    restClientBuilder.setHttpClientConfigCallback(...)
+//                }
+//        );
+        resultData.addSink(esSinkBuilder.build());
         env.execute(DataCleanReport.class.getName());
     }
 }

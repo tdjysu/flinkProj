@@ -1,12 +1,12 @@
 package com.dafy.watermark;
 
-
+import com.dafy.Bean.ReportDeptBean;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.api.java.tuple.Tuple3;
+
 import javax.annotation.Nullable;
 
-public class IntentWaterMark  implements AssignerWithPeriodicWatermarks< Tuple3<Long,String,Integer>> {
+public class IntentReportWaterMark implements AssignerWithPeriodicWatermarks<ReportDeptBean> {
 
 
     Long currentMaxTimestamp = 0L;
@@ -19,8 +19,8 @@ public class IntentWaterMark  implements AssignerWithPeriodicWatermarks< Tuple3<
     }
 
     @Override
-    public long extractTimestamp(Tuple3<Long,String,Integer> elements, long previousElementTimestamp){
-        Long timestame = elements.f0;
+    public long extractTimestamp(ReportDeptBean elements, long previousElementTimestamp){
+        Long timestame = elements.getEventTime();
         currentMaxTimestamp = Math.max(timestame,currentMaxTimestamp);
         return timestame;
     }

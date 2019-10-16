@@ -1,11 +1,8 @@
 package com.df;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.df.DimSource.DimSource4Redis;
 import com.df.DimSource.OrgaRedisSourceJava;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -95,7 +92,7 @@ public class IntentConnectJava {
             jsonObject.put("adminAreaCode",adminAreaCode);
             jsonObject.put("adminAreaName",adminAreaName);
             out.collect(jsonObject.toJSONString());
-            System.out.println(jsonObject.toJSONString());
+ System.out.println(jsonObject.toJSONString());
 
         }
 
