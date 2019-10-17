@@ -128,7 +128,7 @@ public class DataReport {
 
 
         //获取迟到太久的数据
-//        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
+        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
 //      将迟到的数据存储到Kafka
 //        sideOutput.addSink();
 //        resultData.addSink(redisSink);

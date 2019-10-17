@@ -3,11 +3,12 @@ package com.dafy;
 import com.alibaba.fastjson.JSONObject;
 import com.dafy.Bean.ReportDeptBean;
 import com.dafy.RedisMapper.MyRedisMapper;
+import com.dafy.sink.ESSink;
+import com.dafy.sink.MysqlLateSink;
 import com.dafy.sink.MysqlSink;
 import com.dafy.watermark.IntentReportWaterMark;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -19,8 +20,6 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.redis.RedisSink;
@@ -28,8 +27,6 @@ import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolC
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.http.HttpHost;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Requests;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.text.SimpleDateFormat;
@@ -47,6 +44,7 @@ public class DataCleanReport {
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
         prop.setProperty("group.id","report1");
+
 
 //        创建Redis的配置
         FlinkJedisPoolConfig conf = new FlinkJedisPoolConfig.Builder().setHost("localhost").setPort(6379).build();
@@ -159,12 +157,12 @@ public class DataCleanReport {
                         Long leventtime = arrayList.get(arrayList.size() - 1);
 //                      组装结果
 
-System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " " + deptName
-                    + " 中心-> " + busiAreaCode + " " + busiAreaName
-                    + " 区域-> " + adminAreaCode + " " + adminAreaName
-                    + " 资方-> " + fundcode
-                    + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt
-                  );
+//System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " " + deptName
+//                    + " 中心-> " + busiAreaCode + " " + busiAreaName
+//                    + " 区域-> " + adminAreaCode + " " + adminAreaName
+//                    + " 资方-> " + fundcode
+//                    + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt
+//                  );
 
 
                         ReportDeptBean res = new ReportDeptBean(leventtime,deptcode,deptName,busiAreaCode,busiAreaName,
@@ -174,60 +172,22 @@ System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " "
                 });
 
         //获取迟到太久的数据
-//        DataStream<Tuple3<Long,String,Integer>> sideOutput = resultData.getSideOutput(outputTag);
+//        DataStream<ReportDeptBean> sideOutput = resultData.getSideOutput(outputTag);
 //      将迟到的数据存储到Kafka
-//        sideOutput.addSink();
+//        sideOutput.addSink(new MysqlLateSink());
+
+
 //      将结果数据写入 Mysql
         resultData.addSink( new MysqlSink());
 
 //      将结果数据写入 ES
-
-        List<HttpHost> httpHosts = new ArrayList<>();
-        httpHosts.add(new HttpHost("192.168.8.209", 9200, "http"));
-
 // use a ElasticsearchSink.Builder to create an ElasticsearchSink
-        ElasticsearchSink.Builder<ReportDeptBean> esSinkBuilder = new ElasticsearchSink.Builder<>(
-                httpHosts,
-                new ElasticsearchSinkFunction<ReportDeptBean>() {
-                    public IndexRequest createIndexRequest(ReportDeptBean element) {
-                        Map<String, String> json = new HashMap<>();
-                        json.put("eventTime", element.getEventTime()+"");
-                        json.put("deptcode",element.getDeptCode());
-                        json.put("deptname",element.getDeptName());
-                        json.put("busiAreaCode",element.getBusiAreaCode());
-                        json.put("busiAreaName",element.getBusiAreaName());
-                        json.put("adminAreaCode",element.getAdminAreaCode());
-                        json.put("adminAreaName",element.getAdminAreaName());
-                        json.put("fundcode",element.getFundcode());
-                        json.put("lendCnt",element.getLendCnt()+"");
-                        json.put("lamount",element.getLamount()+"");
-
-
-                        return Requests.indexRequest()
-                                .index("intentreport_index")
-                                .type("intenttype")
-                                .source(json);
-                    }
-                    @Override
-                    public void process(ReportDeptBean element, RuntimeContext ctx, RequestIndexer indexer) {
-                        indexer.add(createIndexRequest(element));
-                    }
-                }
-        );
-
+        ElasticsearchSink.Builder<ReportDeptBean> myESSink = new ESSink().getReportDeptBeanBuilder();
 // configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-        esSinkBuilder.setBulkFlushMaxActions(1);
-
-// provide a RestClientFactory for custom configuration on the internally created REST client
-//        esSinkBuilder.setRestClientFactory(
-//                restClientBuilder -> {
-//                    restClientBuilder.setDefaultHeaders(...)
-//                    restClientBuilder.setMaxRetryTimeoutMillis(...)
-//                    restClientBuilder.setPathPrefix(...)
-//                    restClientBuilder.setHttpClientConfigCallback(...)
-//                }
-//        );
-        resultData.addSink(esSinkBuilder.build());
+        //设置批量写数据的缓冲区大小，实际生产环境要调大一些
+        myESSink.setBulkFlushMaxActions(1);
+        resultData.addSink(myESSink.build());
         env.execute(DataCleanReport.class.getName());
     }
+
 }
