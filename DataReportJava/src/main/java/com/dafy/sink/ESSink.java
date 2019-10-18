@@ -1,6 +1,6 @@
 package com.dafy.sink;
 
-import com.dafy.Bean.ReportDeptBean;
+import com.dafy.bean.ReportDeptBean;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;

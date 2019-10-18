@@ -1,6 +1,6 @@
 package com.dafy.sink;
 
-import com.dafy.Bean.ReportDeptBean;
+import com.dafy.bean.ReportDeptBean;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 import java.sql.Connection;

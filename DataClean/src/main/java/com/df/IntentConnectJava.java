@@ -40,7 +40,7 @@ public class IntentConnectJava {
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         FlinkKafkaConsumer010 myConsumer =  new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
-
+//        myConsumer.setStartFromLatest();
 //      获取kafka中的数据
         DataStream data = env.addSource(myConsumer);
 

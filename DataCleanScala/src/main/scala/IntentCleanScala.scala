@@ -10,7 +10,6 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaConsumer011, FlinkKafkaProducer010, FlinkKafkaProducer011}
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper
 import org.apache.flink.util.Collector
-
 import scala.collection.mutable
 
 object IntentCleanScala {

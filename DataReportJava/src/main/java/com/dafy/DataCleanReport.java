@@ -1,10 +1,9 @@
 package com.dafy;
 
 import com.alibaba.fastjson.JSONObject;
-import com.dafy.Bean.ReportDeptBean;
+import com.dafy.bean.ReportDeptBean;
 import com.dafy.RedisMapper.MyRedisMapper;
 import com.dafy.sink.ESSink;
-import com.dafy.sink.MysqlLateSink;
 import com.dafy.sink.MysqlSink;
 import com.dafy.watermark.IntentReportWaterMark;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -26,7 +25,6 @@ import org.apache.flink.streaming.connectors.redis.RedisSink;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.text.SimpleDateFormat;
@@ -53,6 +51,7 @@ public class DataCleanReport {
 //       kafka消费配置
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<>(inTopic,new SimpleStringSchema(),prop);
 
+        kafkaConsumer.setStartFromLatest();
 
         /**
          * 获取Kafka中的数据
@@ -157,12 +156,12 @@ public class DataCleanReport {
                         Long leventtime = arrayList.get(arrayList.size() - 1);
 //                      组装结果
 
-//System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " " + deptName
-//                    + " 中心-> " + busiAreaCode + " " + busiAreaName
-//                    + " 区域-> " + adminAreaCode + " " + adminAreaName
-//                    + " 资方-> " + fundcode
-//                    + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt
-//                  );
+System.out.println("统计时间-> " + evtime +  " 营业部->" + deptcode + " " + deptName
+                    + " 中心-> " + busiAreaCode + " " + busiAreaName
+                    + " 区域-> " + adminAreaCode + " " + adminAreaName
+                    + " 资方-> " + fundcode
+                    + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt
+                  );
 
 
                         ReportDeptBean res = new ReportDeptBean(leventtime,deptcode,deptName,busiAreaCode,busiAreaName,
@@ -172,7 +171,7 @@ public class DataCleanReport {
                 });
 
         //获取迟到太久的数据
-//        DataStream<ReportDeptBean> sideOutput = resultData.getSideOutput(outputTag);
+        DataStream<ReportDeptBean> sideOutput = resultData.getSideOutput(outputTag);
 //      将迟到的数据存储到Kafka
 //        sideOutput.addSink(new MysqlLateSink());
 

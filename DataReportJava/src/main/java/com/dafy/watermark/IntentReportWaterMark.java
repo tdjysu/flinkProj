@@ -1,6 +1,6 @@
 package com.dafy.watermark;
 
-import com.dafy.Bean.ReportDeptBean;
+import com.dafy.bean.ReportDeptBean;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 

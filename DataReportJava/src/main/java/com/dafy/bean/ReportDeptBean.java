@@ -1,4 +1,4 @@
-package com.dafy.Bean;
+package com.dafy.bean;
 
 public class ReportDeptBean {
 
