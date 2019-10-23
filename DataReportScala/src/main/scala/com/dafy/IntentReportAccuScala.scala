@@ -9,7 +9,8 @@ import com.dafy.sink.MysqlSink
 import com.dafy.watermark.IntentReportWatermarkScala
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.api.common.serialization.SimpleStringSchema
-import org.apache.flink.api.common.state.{MapState, ValueState}
+import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.CheckpointConfig
 import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction, ProcessWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
@@ -111,11 +112,33 @@ object IntentReportAccuScala {
       .sideOutputLateData(outputTag)//处理迟到的数据
       .process(new ProcessWindowFunction[ReportDeptBean,ReportDeptBean,String,TimeWindow] {
          var lendCnt:ValueState[Integer] = _ //定义借款笔数计算状态变量
-         var lendMemberCnt:MapState[String,String] = _ //定义借款人数计算状态变量
+         var funderCnt:MapState[String,String] = _ //定义借款人数计算状态变量
 
+      override def open(parameters: Configuration): Unit = {
+        funderCnt =getRuntimeContext.getMapState( new MapStateDescriptor[String,String]("deptcode",classOf[String],classOf[String]))
+        lendCnt = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer] ("lendCnt",classOf[Integer]))
+      }
 
+        override def process(key: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
+          var lendCount = 0
+          val elementNode = elements.iterator
+//          遍历全部窗口数据，获取唯一资方编码
+          while (elementNode.hasNext){
+            lendCount += 1
+            val funder = elementNode.next().fundcode
+            funderCnt.put(funder,null)
+          }
 
-      override def process(key: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
+          lendCnt.update(lendCnt.value() + lendCount)
+          var count:Long = 0;
+          val deptIterator = funderCnt.keys().iterator()
+          while (deptIterator.hasNext){
+            deptIterator.next()
+            count += 1
+          }
+
+          out.collect(key,lendCount)
+          out.collect(key,funderCnt)
 
       }
     } )
