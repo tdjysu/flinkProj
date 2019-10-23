@@ -1,25 +1,27 @@
 package com.dafy
 
-
 import java.text.SimpleDateFormat
-import java.util.{ArrayList, Date, Iterator, Properties}
+import java.util.{Date, Properties}
 
-import bean.ReportDeptBean
-import com.alibaba.fastjson.{JSON, JSONObject}
+import com.alibaba.fastjson.JSON
+import com.dafy.bean.ReportDeptBean
 import com.dafy.sink.MysqlSink
+import com.dafy.watermark.IntentReportWatermarkScala
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.api.common.serialization.SimpleStringSchema
+import org.apache.flink.api.common.state.{MapState, ValueState}
 import org.apache.flink.streaming.api.environment.CheckpointConfig
-import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction, ProcessWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010
-import org.slf4j.LoggerFactory
-import com.dafy.watermark.IntentReportWatermarkScala
-import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
 import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010
 import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Sorting
@@ -27,7 +29,7 @@ import scala.util.Sorting
 /**
   *
   */
-object IntentReportScala {
+object IntentReportAccuScala {
 
   val Logger = LoggerFactory.getLogger("IntentReportScala")
 
@@ -89,7 +91,7 @@ object IntentReportScala {
       kafkaDataBean
 })
 //过滤异常数据
-    val filterData = mapData.filter(new FilterFunction[ReportDeptBean] {
+    val filterData: DataStream[ReportDeptBean] = mapData.filter(new FilterFunction[ReportDeptBean] {
       override def filter(value: ReportDeptBean): Boolean = {
         return value.eventTime >= 0
       }
@@ -102,8 +104,21 @@ object IntentReportScala {
 
     val resultData = filterData.assignTimestampsAndWatermarks( new IntentReportWatermarkScala())
       .keyBy(_.deptCode)//定义分组字段
-      .window(TumblingEventTimeWindows.of(Time.seconds(10)))//滚动统计近10秒的数据
-      .sideOutputLateData(outputTag)
+      .window(TumblingEventTimeWindows.of(Time.days(1),Time.hours(-8)))//滚动统计1天的数据
+      .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))//增加trigger,以一定的频率输出中间结果
+      .evictor(TimeEvictor.of(Time.seconds(0),true))//增加evictor是因为，每次trigger触发计算，窗口中的所有数据都会参与，所以数据会
+//      触发多次，比较浪费，加evictor驱逐已经计算过的数据,就不会重复计算了
+      .sideOutputLateData(outputTag)//处理迟到的数据
+      .process(new ProcessWindowFunction[ReportDeptBean,ReportDeptBean,String,TimeWindow] {
+         var lendCnt:ValueState[Integer] = _ //定义借款笔数计算状态变量
+         var lendMemberCnt:MapState[String,String] = _ //定义借款人数计算状态变量
+
+
+
+      override def process(key: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
+
+      }
+    } )
       .apply(function = new WindowFunction[ReportDeptBean, ReportDeptBean, String, TimeWindow] {
         override def apply(strkey: String, window: TimeWindow, inputVal: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
           //获取分组字段信息
@@ -152,7 +167,7 @@ println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName 
     //将结果数据输出到Mysql
       resultData.addSink(new MysqlSink())
 
-      env.execute(IntentReportScala.getClass().getName)
+      env.execute(IntentReportAccuScala.getClass().getName)
 
   }
 

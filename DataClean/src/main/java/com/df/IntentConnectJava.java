@@ -92,7 +92,7 @@ public class IntentConnectJava {
             jsonObject.put("adminAreaCode",adminAreaCode);
             jsonObject.put("adminAreaName",adminAreaName);
             out.collect(jsonObject.toJSONString());
- System.out.println(jsonObject.toJSONString());
+// System.out.println(jsonObject.toJSONString());
 
         }
 
