@@ -20,9 +20,9 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Sorting
+import java.text.SimpleDateFormat
 
 /**
   *
@@ -118,7 +118,9 @@ object IntentReportScala {
           var adminAreaCode: String = ""
           var adminAreaName: String = ""
           var fundcode: String = ""
+          var timeArray:Array[Long] = new Array[Long](0)
 
+          val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm;ss")
           val it = inputVal.iterator
           while (it.hasNext) {
             val next: ReportDeptBean = it.next
@@ -133,24 +135,22 @@ object IntentReportScala {
             lendAmt += next.lamount //计算借款金额
 // System.out.println( "统计时间->" + next.getEventTime() + "  lendAmt = " + next.getLamount());
 
-//          对时间排序
-            val timeArray = timeBuf.toArray
-            Sorting.quickSort(timeArray)
-
-            val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm;ss")
-            val evtime = sdf.format(new Date(timeArray.last))
-            val levtime = timeArray.last
-
-//           组织结果数据
-println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> " + fundcode + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt)
-            var res: ReportDeptBean = getResultIntentData(deptcode, lendCnt, lendAmt, deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime)
-            out.collect(res)
           }
+
+          //          对时间排序
+          timeArray = timeBuf.toArray
+          Sorting.quickSort(timeArray)
+          val evtime = sdf.format(new Date(timeArray.last))
+          val levtime = timeArray.last
+          //           组织结果数据
+          println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> " + fundcode + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt)
+          var res: ReportDeptBean = getResultIntentData(deptcode, lendCnt, lendAmt, deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime)
+          out.collect(res)
         }
       })
 
     //将结果数据输出到Mysql
-      resultData.addSink(new MysqlSink())
+      resultData.addSink(new MysqlSink("insert","deptReportAgree"))
 
       env.execute(IntentReportScala.getClass().getName)
 

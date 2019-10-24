@@ -16,7 +16,8 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
 
   private var connection:Connection = null
   private var preparedStatement:PreparedStatement = null
-
+  private var sqlType:String = "insert"
+  private var tableName = ""
   override def open(parameters: Configuration): Unit = {
     val driver = "com.mysql.jdbc.Driver"
     val url = "jdbc:mysql://192.168.8.212:3306/xdata?useUnicode=true&characterEncoding=utf8&&allowMultiQueries=true&useSSL=true"
@@ -27,11 +28,21 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
     Class.forName(driver)
 //    创建连接
     connection = DriverManager.getConnection(url,username,password)
-    val sql = "insert into deptReportAgree (cmptimestamp,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lendCnt,lamount) " + "    values(?,?,?,?,?,?,?,?,?,?)"
+    var sqlPrefix = "insert "
+    if(this.sqlType.equals( "upsert")){
+      sqlPrefix = "replace"
+    }
+    val sql = sqlPrefix + " into " +this.tableName+ " (cmptimestamp,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lendCnt,lamount) " + "    values(?,?,?,?,?,?,?,?,?,?)"
     //    获得执行语句
     preparedStatement = connection.prepareStatement(sql)
     }
 
+
+  def this(sqlType:String,tableName:String){
+    this()
+    this.sqlType = sqlType
+    this.tableName = tableName
+  }
 
   override def close(): Unit = {
     if(connection != null ){

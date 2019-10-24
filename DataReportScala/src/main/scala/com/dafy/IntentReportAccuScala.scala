@@ -105,90 +105,89 @@ object IntentReportAccuScala {
 
     val resultData = filterData.assignTimestampsAndWatermarks( new IntentReportWatermarkScala())
       .keyBy(_.deptCode)//定义分组字段
-      .window(TumblingEventTimeWindows.of(Time.days(1),Time.hours(-8)))//滚动统计1天的数据
+      .window(TumblingEventTimeWindows.of(Time.days(1)))//滚动统计1天的数据
       .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))//增加trigger,以一定的频率输出中间结果
       .evictor(TimeEvictor.of(Time.seconds(0),true))//增加evictor是因为，每次trigger触发计算，窗口中的所有数据都会参与，所以数据会
 //      触发多次，比较浪费，加evictor驱逐已经计算过的数据,就不会重复计算了
       .sideOutputLateData(outputTag)//处理迟到的数据
-      .process(new ProcessWindowFunction[ReportDeptBean,ReportDeptBean,String,TimeWindow] {
-         var lendCnt:ValueState[Integer] = _ //定义借款笔数计算状态变量
-         var funderCnt:MapState[String,String] = _ //定义借款人数计算状态变量
+      .process(function = new ProcessWindowFunction[ReportDeptBean, ReportDeptBean, String, TimeWindow] {
+      var lendCntState: ValueState[Integer] = _ //定义借款笔数计算状态变量
+      var lendAmtState: ValueState[Integer] = _ //定义借款金额计算状态变量
+      var funderCntSate: MapState[String, String] = _ //定义借款人数计算状态变量
+
 
       override def open(parameters: Configuration): Unit = {
-        funderCnt =getRuntimeContext.getMapState( new MapStateDescriptor[String,String]("deptcode",classOf[String],classOf[String]))
-        lendCnt = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer] ("lendCnt",classOf[Integer]))
+        funderCntSate = getRuntimeContext.getMapState(new MapStateDescriptor[String, String]("deptcode", classOf[String], classOf[String]))
+        lendCntState = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer]("lendCntState", classOf[Integer]))
+        lendAmtState = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer]("lendAmtState", classOf[Integer]))
       }
 
-        override def process(key: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
-          var lendCount = 0
-          val elementNode = elements.iterator
-//          遍历全部窗口数据，获取唯一资方编码
-          while (elementNode.hasNext){
+      override def process(strkey: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
+
+
+        //获取分组字段信息
+        val deptcode: String = strkey
+        // 存储时间，获取最后数据的时间
+        var timeBuf = ArrayBuffer[Long]()
+        var lendCnt: Int = 0 //借款笔数
+        var lendAmt: Int = 0 //借款金额
+        var deptName: String = ""
+        var busiAreaCode: String = ""
+        var busiAreaName: String = ""
+        var adminAreaCode: String = ""
+        var adminAreaName: String = ""
+        var fundcode: String = ""
+        var timeArray: Array[Long] = new Array[Long](0)
+
+        var lendCount = 0
+        var lendAmount = 0
+        val elementNode = elements.iterator
+
+        try {
+          //          遍历全部窗口数据，获取唯一资方编码
+          while (elementNode.hasNext) {
             lendCount += 1
-            val funder = elementNode.next().fundcode
-            funderCnt.put(funder,null)
-          }
+            var next: ReportDeptBean = elementNode.next()
+            lendAmount += next.lamount
+            var funder = next.fundcode
 
-          lendCnt.update(lendCnt.value() + lendCount)
-          var count:Long = 0;
-          val deptIterator = funderCnt.keys().iterator()
-          while (deptIterator.hasNext){
-            deptIterator.next()
-            count += 1
-          }
-
-          out.collect(key,lendCount)
-          out.collect(key,funderCnt)
-
-      }
-    } )
-      .apply(function = new WindowFunction[ReportDeptBean, ReportDeptBean, String, TimeWindow] {
-        override def apply(strkey: String, window: TimeWindow, inputVal: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
-          //获取分组字段信息
-          val deptcode: String = strkey
-          // 存储时间，获取最后数据的时间
-          var timeBuf = ArrayBuffer[Long]()
-          var lendCnt: Int = 0 //借款笔数
-          var lendAmt: Int = 0 //借款金额
-          var deptName: String = ""
-          var busiAreaCode: String = ""
-          var busiAreaName: String = ""
-          var adminAreaCode: String = ""
-          var adminAreaName: String = ""
-          var fundcode: String = ""
-
-          val it = inputVal.iterator
-          while (it.hasNext) {
-            val next: ReportDeptBean = it.next
-            timeBuf.append(next.eventTime)
             deptName = next.deptName
             busiAreaCode = next.busiAreaCode
             busiAreaName = next.busiAreaName
             adminAreaCode = next.adminAreaCode
             adminAreaName = next.busiAreaName
             fundcode = next.fundcode
-            lendCnt += 1 //计算借款笔数
-            lendAmt += next.lamount //计算借款金额
-// System.out.println( "统计时间->" + next.getEventTime() + "  lendAmt = " + next.getLamount());
-
-//          对时间排序
-            val timeArray = timeBuf.toArray
-            Sorting.quickSort(timeArray)
-
-            val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm;ss")
-            val evtime = sdf.format(new Date(timeArray.last))
-            val levtime = timeArray.last
-
-//           组织结果数据
-println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> " + fundcode + " 借款笔数-> " + lendCnt + " 借款金额-> " + lendAmt)
-            var res: ReportDeptBean = getResultIntentData(deptcode, lendCnt, lendAmt, deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime)
-            out.collect(res)
+            funderCntSate.put(funder, null)
           }
+
+          lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + lendCount)
+          lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
+          var count: Long = 0;
+          val deptIterator = funderCntSate.keys().iterator()
+          while (deptIterator.hasNext) {
+            deptIterator.next()
+            count += 1
+          }
+
+          var levtime: Long = System.currentTimeMillis()
+          var evtime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(levtime)
+
+          //           组织结果数据
+          println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> " + fundcode + " 借款笔数-> " + lendCntState.value() + " 借款金额-> " + lendAmtState.value())
+          var res: ReportDeptBean = getResultIntentData(deptcode, lendCntState.value(), lendAmtState.value(), deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime)
+          out.collect(res)
+        }catch{ case  e:Exception => {
+          Logger.error("",e.getCause)
+          println("Cause-->" + e.getCause);
+          println("Message-->" + e.getMessage)
         }
-      })
+      }
+      }
+    })
+
 
     //将结果数据输出到Mysql
-      resultData.addSink(new MysqlSink())
+      resultData.addSink(new MysqlSink("upsert","deptReportAccu"))
 
       env.execute(IntentReportAccuScala.getClass().getName)
 
