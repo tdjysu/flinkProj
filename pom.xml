@@ -56,12 +56,45 @@
                 <version>${flink.version}</version>
                 <!--<scope>provided</scope>-->
             </dependency>
+
             <dependency>
                 <groupId>org.apache.flink</groupId>
-                <artifactId>flink-table</artifactId>
+                <artifactId>flink-table-api-java-bridge_2.11</artifactId>
                 <version>${flink.version}</version>
-                <!--<scope>provided</scope>-->
             </dependency>
+
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-table-api-scala-bridge_2.11</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-table-planner_2.11</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+
+<!--            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-table-planner-blink_2.11</artifactId>
+                <version>1.9.0</version>
+                <scope>provided</scope>
+            </dependency>-->
+
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-streaming-scala_2.11</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-table-common</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+
+
             <dependency>
                 <groupId>org.apache.flink</groupId>
                 <artifactId>flink-clients_${scala.binary.version}</artifactId>
@@ -118,14 +151,6 @@
                 <artifactId>druid</artifactId>
                 <version>1.0.14</version>
             </dependency>
-
-            <dependency>
-                <groupId>mysql</groupId>
-                <artifactId>mysql-connector-java</artifactId>
-                <version>5.1.38</version>
-            </dependency>
-
-
             <dependency>
                 <groupId>org.apache.flink</groupId>
                 <artifactId>flink-connector-elasticsearch6_2.11</artifactId>
