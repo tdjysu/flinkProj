@@ -91,6 +91,25 @@ public class IntentConnectJava {
             jsonObject.put("busiAreaName",busiAreaName);
             jsonObject.put("adminAreaCode",adminAreaCode);
             jsonObject.put("adminAreaName",adminAreaName);
+            JSONObject beforeRecord = jsonObject.getJSONObject("beforeRecord");
+            String oldDeptcode = null;
+            if(beforeRecord != null){
+                oldDeptcode = beforeRecord.getString("strdeptcode");
+            }
+            if(oldDeptcode != null) {
+                String oldOrgArray[] = orgDimMap.get(oldDeptcode);
+                String olddetpname = oldOrgArray[0];
+                String oldbusiAreaCode = oldOrgArray[1];
+                String oldbusiAreaName = oldOrgArray[2];
+                String oldadminAreaCode = oldOrgArray[3];
+                String oldadminAreaName = oldOrgArray[4];
+                beforeRecord.put("detpname", olddetpname);
+                beforeRecord.put("busiAreaCode", oldbusiAreaCode);
+                beforeRecord.put("busiAreaName", oldbusiAreaName);
+                beforeRecord.put("adminAreaCode", oldadminAreaCode);
+                beforeRecord.put("adminAreaName", oldadminAreaName);
+            }
+            jsonObject.put("beforeRecord",beforeRecord);
             out.collect(jsonObject.toJSONString());
 // System.out.println(jsonObject.toJSONString());
 

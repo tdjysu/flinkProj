@@ -20,5 +20,8 @@ class ReportDeptBean {
   var fundcode: String = ""
   var lendCnt: Integer = 0
   var lamount: Integer = 0
-
+  var userId:String = ""
+  var userCnt:Integer = 0
+  var intentState:Int = _
+  var opFlag:String = _
 }

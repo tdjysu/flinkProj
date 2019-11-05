@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Sorting
-
 /**
   *
   */
@@ -36,9 +35,8 @@ object IntentReportAccuScala {
 
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-
     //修改并行度
-    env.setParallelism(5)
+    env.setParallelism(10)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     //checkPoint 设置
     env.enableCheckpointing(60000)
@@ -94,7 +92,7 @@ object IntentReportAccuScala {
 //过滤异常数据
     val filterData: DataStream[ReportDeptBean] = mapData.filter(new FilterFunction[ReportDeptBean] {
       override def filter(value: ReportDeptBean): Boolean = {
-        return value.eventTime >= 0
+        return value.eventTime >= 0 && value.intentState == 9
       }
     })
 
@@ -113,11 +111,11 @@ object IntentReportAccuScala {
       .process(function = new ProcessWindowFunction[ReportDeptBean, ReportDeptBean, String, TimeWindow] {
       var lendCntState: ValueState[Integer] = _ //定义借款笔数计算状态变量
       var lendAmtState: ValueState[Integer] = _ //定义借款金额计算状态变量
-      var funderCntSate: MapState[String, String] = _ //定义借款人数计算状态变量
+      var userCntSate: MapState[String, String] = _ //定义借款人数计算状态变量
 
 
       override def open(parameters: Configuration): Unit = {
-        funderCntSate = getRuntimeContext.getMapState(new MapStateDescriptor[String, String]("deptcode", classOf[String], classOf[String]))
+        userCntSate = getRuntimeContext.getMapState(new MapStateDescriptor[String, String]("userCntState", classOf[String], classOf[String]))
         lendCntState = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer]("lendCntState", classOf[Integer]))
         lendAmtState = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer]("lendAmtState", classOf[Integer]))
       }
@@ -129,8 +127,6 @@ object IntentReportAccuScala {
         val deptcode: String = strkey
         // 存储时间，获取最后数据的时间
         var timeBuf = ArrayBuffer[Long]()
-        var lendCnt: Int = 0 //借款笔数
-        var lendAmt: Int = 0 //借款金额
         var deptName: String = ""
         var busiAreaCode: String = ""
         var busiAreaName: String = ""
@@ -138,43 +134,56 @@ object IntentReportAccuScala {
         var adminAreaName: String = ""
         var fundcode: String = ""
         var timeArray: Array[Long] = new Array[Long](0)
-
-        var lendCount = 0
         var lendAmount = 0
+        var userId = ""
         val elementNode = elements.iterator
+        var opFlag:String = ""
 
         try {
-          //          遍历全部窗口数据，获取唯一资方编码
+          //          遍历全部窗口数据
           while (elementNode.hasNext) {
-            lendCount += 1
             var next: ReportDeptBean = elementNode.next()
-            lendAmount += next.lamount
+            lendAmount = next.lamount
             var funder = next.fundcode
-
             deptName = next.deptName
             busiAreaCode = next.busiAreaCode
             busiAreaName = next.busiAreaName
             adminAreaCode = next.adminAreaCode
             adminAreaName = next.busiAreaName
             fundcode = next.fundcode
-            funderCntSate.put(funder, null)
+            userId = next.userId
+            opFlag = next.opFlag
+            userCntSate.put(userId, null)
+
+            opFlag match {
+              case "U" => {
+                lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + 1)
+                lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
+              }
+              case "US" =>{
+                lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() - 1)
+                lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() - lendAmount)
+              }
+              case  "I" => {
+                lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + 1)
+                lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
+              }
+            }
+
           }
 
-          lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + lendCount)
-          lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
-          var count: Long = 0;
-          val deptIterator = funderCntSate.keys().iterator()
-          while (deptIterator.hasNext) {
-            deptIterator.next()
-            count += 1
+          var userCount: Integer = 0;
+          val userIterator = userCntSate.keys().iterator()
+          while (userIterator.hasNext) {
+            userIterator.next()
+            userCount += 1
           }
-
           var levtime: Long = System.currentTimeMillis()
           var evtime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(levtime)
-
           //           组织结果数据
-          println("统计时间-> " + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> " + fundcode + " 借款笔数-> " + lendCntState.value() + " 借款金额-> " + lendAmtState.value())
-          var res: ReportDeptBean = getResultIntentData(deptcode, lendCntState.value(), lendAmtState.value(), deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime)
+println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> "
+           + fundcode + " 借款笔数-> " + lendCntState.value() + " 借款金额-> " + lendAmtState.value() + " 借款人数-> " + userCount)
+          var res: ReportDeptBean = getResultIntentData(deptcode, lendCntState.value(), lendAmtState.value(), deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime,userCount)
           out.collect(res)
         }catch{ case  e:Exception => {
           Logger.error("",e.getCause)
@@ -188,12 +197,11 @@ object IntentReportAccuScala {
 
     //将结果数据输出到Mysql
       resultData.addSink(new MysqlSink("upsert","deptReportAccu"))
-
       env.execute(IntentReportAccuScala.getClass().getName)
 
   }
 
-  private def getResultIntentData(deptcode: String, lendCnt: Int, lendAmt: Int, deptName: String, busiAreaCode: String, busiAreaName: String, adminAreaCode: String, adminAreaName: String, fundcode: String, levtime: Long) = {
+  private def getResultIntentData(deptcode: String, lendCnt: Int, lendAmt: Int, deptName: String, busiAreaCode: String, busiAreaName: String, adminAreaCode: String, adminAreaName: String, fundcode: String, levtime: Long,userCount:Integer) = {
     var res: ReportDeptBean = new ReportDeptBean()
     res.eventTime = levtime
     res.deptCode = deptcode
@@ -205,6 +213,7 @@ object IntentReportAccuScala {
     res.fundcode = fundcode
     res.lamount = lendAmt
     res.lendCnt = lendCnt
+    res.userCnt = userCount
     res
   }
 
@@ -218,5 +227,8 @@ object IntentReportAccuScala {
     kafkaDataBean.adminAreaName = jsonObject.getString("adminAreaName")
     kafkaDataBean.fundcode = jsonObject.getString("nborrowmode")
     kafkaDataBean.lamount = jsonObject.getInteger("lamount")
+    kafkaDataBean.userId = jsonObject.getString("userid")
+    kafkaDataBean.intentState = jsonObject.getInteger("nstate")
+    kafkaDataBean.opFlag = jsonObject.getString("opFlag")
   }
 }

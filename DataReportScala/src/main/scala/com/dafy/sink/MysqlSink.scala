@@ -32,7 +32,7 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
     if(this.sqlType.equals( "upsert")){
       sqlPrefix = "replace"
     }
-    val sql = sqlPrefix + " into " +this.tableName+ " (cmptimestamp,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lendCnt,lamount) " + "    values(?,?,?,?,?,?,?,?,?,?)"
+    val sql = sqlPrefix + " into " +this.tableName+ " (cmptimestamp,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lendCnt,lamount,userCnt) " + "    values(?,?,?,?,?,?,?,?,?,?,?)"
     //    获得执行语句
     preparedStatement = connection.prepareStatement(sql)
     }
@@ -52,7 +52,7 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
 
   override def invoke(value: ReportDeptBean): Unit = {
       try{
-         preparedStatement.setTimestamp(1, new Timestamp(value.eventTime))
+          preparedStatement.setTimestamp(1, new Timestamp(value.eventTime))
           preparedStatement.setString(2, value.deptCode)
           preparedStatement.setString(3, value.deptName)
           preparedStatement.setString(4, value.busiAreaCode)
@@ -62,9 +62,10 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
           preparedStatement.setString(8, value.fundcode)
           preparedStatement.setInt(9, value.lendCnt)
           preparedStatement.setInt(10, value.lamount)
-        preparedStatement.executeUpdate()
-      }catch{
-        case e:Exception => println(e.getMessage)
+          preparedStatement.setInt(11,value.userCnt)
+          preparedStatement.executeUpdate()
+         }catch{
+            case e:Exception => println(e.getMessage)
       }
   }
 
