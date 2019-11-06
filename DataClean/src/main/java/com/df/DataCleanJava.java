@@ -10,8 +10,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.Collector;
 
@@ -47,7 +47,7 @@ public class DataCleanJava {
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 
-        FlinkKafkaConsumer011 myConsumer =  new FlinkKafkaConsumer011<String>(topic,new SimpleStringSchema(),prop);
+        FlinkKafkaConsumer010 myConsumer =  new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
 
 //      获取kafka中的数据
         DataStreamSource data = env.addSource(myConsumer);
@@ -91,7 +91,7 @@ public class DataCleanJava {
 
 
 
-        FlinkKafkaProducer011<String> myProducer = new FlinkKafkaProducer011<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp,FlinkKafkaProducer011.Semantic.EXACTLY_ONCE);
+        FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
         resData.addSink(myProducer);
 
         env.execute(DataCleanJava.class.getName());

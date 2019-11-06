@@ -4,8 +4,8 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.CheckpointConfig
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer011, FlinkKafkaProducer011}
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper
+import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 
 object DataCleanScala {
   def main(args: Array[String]): Unit = {
@@ -32,7 +32,7 @@ object DataCleanScala {
     //      设置事务超时时间
     prop.setProperty("transaction.timeout.ms", 60000 * 15 + "")
 
-    val myConsumer = new FlinkKafkaConsumer011[String](topic,new SimpleStringSchema(),prop)
+    val myConsumer = new FlinkKafkaConsumer010[String](topic,new SimpleStringSchema(),prop)
     //获取kafka中的数据
 /*    val data = env.addSource(myConsumer)
 
@@ -71,7 +71,7 @@ object DataCleanScala {
     //      设置事务超时时间
     outProp.setProperty("transaction.timeout.ms", 60000 * 15 + "")
 
-    val myProducer = new FlinkKafkaProducer011[String](outTopic, new KeyedSerializationSchemaWrapper[String](new SimpleStringSchema), outProp, FlinkKafkaProducer011.Semantic.EXACTLY_ONCE)
+    val myProducer = new FlinkKafkaProducer010[String](outTopic, new KeyedSerializationSchemaWrapper[String](new SimpleStringSchema), outProp)
  //   resData.addSink(myProducer)
     //add comment make is lazy
     env.execute("DataCleanScala")

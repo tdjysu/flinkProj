@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.stream.Collector
 
 import DimSource.OrgaRedisSourceScala
 import com.alibaba.fastjson.JSON
@@ -7,9 +8,9 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction
-import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaConsumer011, FlinkKafkaProducer010, FlinkKafkaProducer011}
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper
-import org.apache.flink.util.Collector
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper
+import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+
 import scala.collection.mutable
 
 object IntentCleanScala {
@@ -50,7 +51,7 @@ object IntentCleanScala {
       var orgaMsp = mutable.Map[String, Array[String]]()
 
 //    处理kafka中的数据,根据营业部编码补充组织机构信息
-      override def flatMap1(value: String, out: Collector[String]) = {
+      override def flatMap1(value: String, out: org.apache.flink.util.Collector[String]) = {
           val jSONObject = JSON.parseObject(value)
           val deptcode = jSONObject.getString("strdeptcode")
         //        从Redis中获取大区
@@ -76,7 +77,7 @@ object IntentCleanScala {
 
       }
 //处理Redis中的维度数据
-      override def flatMap2(value: mutable.Map[String,Array[String]], out: Collector[String]) = {
+      override def flatMap2(value: mutable.Map[String,Array[String]], out: org.apache.flink.util.Collector[String]) = {
         this.orgaMsp = value
       }
     })

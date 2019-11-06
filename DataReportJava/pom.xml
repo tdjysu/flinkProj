@@ -12,16 +12,16 @@
     <artifactId>DataReportJava</artifactId>
     <version>0.1</version>
 
-    <dependencies>
+ <!--   <dependencies>
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <!-- <scope>provided</scope> -->
+            &lt;!&ndash; <scope>provided</scope> &ndash;&gt;
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-java</artifactId>
-            <!--provided 表示编译时启用，打包和执行是不启用-->
+            &lt;!&ndash;provided 表示编译时启用，打包和执行是不启用&ndash;&gt;
 
         </dependency>
         <dependency>
@@ -32,12 +32,12 @@
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-scala_${scala.binary.version}</artifactId>
-            <!--<scope>provided</scope>-->
+            &lt;!&ndash;<scope>provided</scope>&ndash;&gt;
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-            <!--<scope>provided</scope>-->
+            &lt;!&ndash;<scope>provided</scope>&ndash;&gt;
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -60,10 +60,6 @@
         <dependency>
             <groupId>org.apache.bahir</groupId>
             <artifactId>flink-connector-redis_2.11</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-connector-kafka-0.11_2.11</artifactId>
         </dependency>
         <dependency>
             <groupId>mysql</groupId>
@@ -98,5 +94,5 @@
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
         </dependency>
-    </dependencies>
+    </dependencies>-->
 </project>

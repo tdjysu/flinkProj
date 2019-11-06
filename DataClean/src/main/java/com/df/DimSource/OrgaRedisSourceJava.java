@@ -13,7 +13,7 @@ import java.util.Set;
 
 public class OrgaRedisSourceJava implements SourceFunction<HashMap<String,String[]>> {
 
-    private static String host = "localhost";
+    private static String host = "192.168.8.213";
     private static int port = 6379;
     private boolean Running = true;
     private static Jedis myJedis = new Jedis(host,port);
