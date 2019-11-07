@@ -77,15 +77,25 @@ public class IntentConnectOrginalJava {
         public void flatMap1(String control_value, Collector<String> out) throws Exception {
 //System.out.println(control_value);
             JSONObject jsonObject = JSONObject.parseObject(control_value);
-            String deptcode = jsonObject.getString("strdeptcode");
+            String deptcode = jsonObject.getJSONObject("strdeptcode").getString("value");
 
 //          通过营业部编码获取其它组织机构信息
             String[] orgArray = orgDimMap.get(deptcode);
-            String detpname = orgArray[0];
-            String busiAreaCode = orgArray[1];
-            String busiAreaName = orgArray[2];
-            String adminAreaCode = orgArray[3];
-            String adminAreaName = orgArray[4];
+
+            String detpname = "其他营业部";
+            String busiAreaCode = "9527404";
+            String busiAreaName = "其他中心";
+            String adminAreaCode = "9527404";
+            String adminAreaName = "其他区域";
+
+            if(orgArray != null && orgArray.length == 5){
+                detpname = orgArray[0];
+                busiAreaCode = orgArray[1];
+                busiAreaName = orgArray[2];
+                adminAreaCode = orgArray[3];
+                adminAreaName = orgArray[4];
+            }
+
             jsonObject.put("detpname",detpname);
             jsonObject.put("busiAreaCode",busiAreaCode);
             jsonObject.put("busiAreaName",busiAreaName);
@@ -98,11 +108,26 @@ public class IntentConnectOrginalJava {
             }
             if(oldDeptcode != null) {
                 String oldOrgArray[] = orgDimMap.get(oldDeptcode);
-                String olddetpname = oldOrgArray[0];
-                String oldbusiAreaCode = oldOrgArray[1];
-                String oldbusiAreaName = oldOrgArray[2];
-                String oldadminAreaCode = oldOrgArray[3];
-                String oldadminAreaName = oldOrgArray[4];
+
+                String olddetpname = "其他营业部";
+                String oldbusiAreaCode = "9527404";
+                String oldbusiAreaName = "其他中心";
+                String oldadminAreaCode = "9527404";
+                String oldadminAreaName = "其他中心";
+
+                if(oldOrgArray != null && oldOrgArray.length == 5){
+                    detpname = orgArray[0];
+                    busiAreaCode = orgArray[1];
+                    busiAreaName = orgArray[2];
+                    adminAreaCode = orgArray[3];
+                    adminAreaName = orgArray[4];
+                }
+
+                olddetpname = oldOrgArray[0];
+                oldbusiAreaCode = oldOrgArray[1];
+                oldbusiAreaName = oldOrgArray[2];
+                oldadminAreaCode = oldOrgArray[3];
+                oldadminAreaName = oldOrgArray[4];
                 beforeRecord.put("detpname", olddetpname);
                 beforeRecord.put("busiAreaCode", oldbusiAreaCode);
                 beforeRecord.put("busiAreaName", oldbusiAreaName);
@@ -111,7 +136,7 @@ public class IntentConnectOrginalJava {
             }
             jsonObject.put("beforeRecord",beforeRecord);
             out.collect(jsonObject.toJSONString());
-// System.out.println(jsonObject.toJSONString());
+ System.out.println(jsonObject.toJSONString());
 
         }
 

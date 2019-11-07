@@ -1,6 +1,6 @@
 package com.dafy.watermark
 
-import com.dafy.bean.ReportDeptBean
+import com.dafy.bean.ReportOriginalDeptBean
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
 
@@ -11,11 +11,11 @@ import org.apache.flink.streaming.api.watermark.Watermark
   * @Author Albert
   *         Version v0.9
   */
-class IntentReportWatermarkScala extends AssignerWithPeriodicWatermarks[ReportDeptBean]{
+class IntentReportWatermarkScala extends AssignerWithPeriodicWatermarks[ReportOriginalDeptBean]{
   var currentMaxTimestamp = 0L
      var maxOutOfOrderness = 10000L //最大允许的乱序时间是10秒
 
-  override def extractTimestamp(element: ReportDeptBean, previousElementTimestamp: Long): Long = {
+  override def extractTimestamp(element: ReportOriginalDeptBean, previousElementTimestamp: Long): Long = {
     val currentTimestamp = element.eventTime
     currentMaxTimestamp = Math.max(currentTimestamp,currentMaxTimestamp)
     currentTimestamp

@@ -3,8 +3,8 @@ package com.dafy
 import java.text.SimpleDateFormat
 import java.util.Properties
 
-import com.alibaba.fastjson.JSON
-import com.dafy.bean.ReportDeptBean
+import com.alibaba.fastjson.{JSON, JSONObject}
+import com.dafy.bean.{ReportDeptBean, ReportOriginalDeptBean}
 import com.dafy.sink.MysqlSink
 import com.dafy.watermark.IntentReportWatermarkScala
 import org.apache.flink.api.common.functions.FilterFunction
@@ -50,7 +50,7 @@ object IntentReportAccuScala {
     //隐式转换
     import org.apache.flink.api.scala._
 
-    val inTopic = "intent_t2"
+    val inTopic = "intent_n2"
     val brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092"
     val prop = new Properties
     prop.setProperty("bootstrap.servers", brokerList)
@@ -71,7 +71,7 @@ object IntentReportAccuScala {
 
 
 
-    val mapData: DataStream[ReportDeptBean] = kafkaData.map(kafkaline => {
+    val mapData: DataStream[ReportOriginalDeptBean] = kafkaData.map(kafkaline => {
       var eventTime: Long = 0
       var deptCode: String = ""
       var deptName: String = ""
@@ -82,17 +82,17 @@ object IntentReportAccuScala {
       var fundcode: String = ""
       var lendCnt: Integer = 0
       var lamount: Integer = 0
-      val kafkaDataBean: ReportDeptBean = new ReportDeptBean
+      val kafkaDataBean: ReportOriginalDeptBean = new ReportOriginalDeptBean
       //      解析文本转换JSON
       val jsonObject = JSON.parseObject(kafkaline)
-
+//    根据Json生成对象
       generateIntentBean(kafkaDataBean, jsonObject)
 
       kafkaDataBean
 })
 //过滤异常数据
-    val filterData: DataStream[ReportDeptBean] = mapData.filter(new FilterFunction[ReportDeptBean] {
-      override def filter(value: ReportDeptBean): Boolean = {
+    val filterData: DataStream[ReportOriginalDeptBean] = mapData.filter(new FilterFunction[ReportOriginalDeptBean] {
+      override def filter(value: ReportOriginalDeptBean): Boolean = {
         return value.eventTime >= 0 && value.intentState == 9
       }
     })
@@ -100,7 +100,7 @@ object IntentReportAccuScala {
 
 //保存迟到太久的数据,
 //    scala 要引入 org.apache.flink.streaming.api.scala.OutputTag
-    val outputTag = new OutputTag[ReportDeptBean]("late-data"){}
+    val outputTag = new OutputTag[ReportOriginalDeptBean]("late-data"){}
 
     val resultData = filterData.assignTimestampsAndWatermarks( new IntentReportWatermarkScala())
       .keyBy(_.deptCode)//定义分组字段
@@ -109,7 +109,7 @@ object IntentReportAccuScala {
       .evictor(TimeEvictor.of(Time.seconds(0),true))//增加evictor是因为，每次trigger触发计算，窗口中的所有数据都会参与，所以数据会
 //      触发多次，比较浪费，加evictor驱逐已经计算过的数据,就不会重复计算了
       .sideOutputLateData(outputTag)//处理迟到的数据
-      .process(function = new ProcessWindowFunction[ReportDeptBean, ReportDeptBean, String, TimeWindow] {
+      .process(function = new ProcessWindowFunction[ReportOriginalDeptBean, ReportOriginalDeptBean, String, TimeWindow] {
       var lendCntState: ValueState[Integer] = _ //定义借款笔数计算状态变量
       var lendAmtState: ValueState[Integer] = _ //定义借款金额计算状态变量
       var userCntSate: MapState[String, String] = _ //定义借款人数计算状态变量
@@ -218,7 +218,7 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
     res
   }
 
-  private def generateIntentBean(kafkaDataBean: _root_.com.dafy.bean.ReportDeptBean, jsonObject: _root_.com.alibaba.fastjson.JSONObject) = {
+  private def generateIntentBean(kafkaDataBean: ReportOriginalDeptBean, jsonObject: JSONObject) = {
     kafkaDataBean.eventTime = jsonObject.getLong("strloandate")
     kafkaDataBean.deptCode = jsonObject.getString("strdeptcode")
     kafkaDataBean.deptName = jsonObject.getString("detpname")
@@ -231,5 +231,13 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
     kafkaDataBean.userId = jsonObject.getString("userid")
     kafkaDataBean.intentState = jsonObject.getInteger("nstate")
     kafkaDataBean.opFlag = jsonObject.getString("opFlag")
+
+    var beforeRecord:JSONObject = jsonObject.getJSONObject("beforeRecord")
+    kafkaDataBean.oldDeptCode = beforeRecord.getJSONObject("strdeptcode").getString("value")
+    kafkaDataBean.oldDeptName = beforeRecord.getJSONObject("detpname").getString("value")
+    kafkaDataBean.oldAdminAreaCode = beforeRecord.getJSONObject("busiAreaCode").getString("value")
+    kafkaDataBean.oldAdminAreaName = beforeRecord.getJSONObject("busiAreaName").getString("value")
+
+
   }
 }
