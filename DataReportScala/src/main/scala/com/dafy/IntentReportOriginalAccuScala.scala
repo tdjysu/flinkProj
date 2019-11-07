@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
 /**
   *
   */
-object IntentReportAccuScala {
+object IntentReportOriginalAccuScala {
 
   val Logger = LoggerFactory.getLogger("IntentReportScala")
 
@@ -121,7 +121,7 @@ object IntentReportAccuScala {
         lendAmtState = getRuntimeContext.getState[Integer](new ValueStateDescriptor[Integer]("lendAmtState", classOf[Integer]))
       }
 
-      override def process(strkey: String, context: Context, elements: Iterable[ReportDeptBean], out: Collector[ReportDeptBean]): Unit = {
+      override def process(strkey: String, context: Context, elements: Iterable[ReportOriginalDeptBean], out: Collector[ReportOriginalDeptBean]): Unit = {
 
 
         //获取分组字段信息
@@ -143,7 +143,7 @@ object IntentReportAccuScala {
         try {
           //          遍历全部窗口数据
           while (elementNode.hasNext) {
-            var next: ReportDeptBean = elementNode.next()
+            var next: ReportOriginalDeptBean = elementNode.next()
             lendAmount = next.lamount
             var funder = next.fundcode
             deptName = next.deptName
@@ -184,7 +184,7 @@ object IntentReportAccuScala {
           //           组织结果数据
 println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业部->" + deptcode + " " + deptName + " 中心-> " + busiAreaCode + " " + busiAreaName + " 区域-> " + adminAreaCode + " " + adminAreaName + " 资方-> "
            + fundcode + " 借款笔数-> " + lendCntState.value() + " 借款金额-> " + lendAmtState.value() + " 借款人数-> " + userCount)
-          var res: ReportDeptBean = getResultIntentData(deptcode, lendCntState.value(), lendAmtState.value(), deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime,userCount)
+          var res: ReportOriginalDeptBean = getResultIntentData(deptcode, lendCntState.value(), lendAmtState.value(), deptName, busiAreaCode, busiAreaName, adminAreaCode, adminAreaName, fundcode, levtime,userCount)
           out.collect(res)
         }catch{ case  e:Exception => {
           Logger.error("",e.getCause)
@@ -203,7 +203,7 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
   }
 
   private def getResultIntentData(deptcode: String, lendCnt: Int, lendAmt: Int, deptName: String, busiAreaCode: String, busiAreaName: String, adminAreaCode: String, adminAreaName: String, fundcode: String, levtime: Long,userCount:Integer) = {
-    var res: ReportDeptBean = new ReportDeptBean()
+    var res: ReportOriginalDeptBean = new ReportOriginalDeptBean()
     res.eventTime = levtime
     res.deptCode = deptcode
     res.deptName = deptName
@@ -219,25 +219,29 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
   }
 
   private def generateIntentBean(kafkaDataBean: ReportOriginalDeptBean, jsonObject: JSONObject) = {
-    kafkaDataBean.eventTime = jsonObject.getLong("strloandate")
-    kafkaDataBean.deptCode = jsonObject.getString("strdeptcode")
-    kafkaDataBean.deptName = jsonObject.getString("detpname")
-    kafkaDataBean.busiAreaCode = jsonObject.getString("busiAreaCode")
-    kafkaDataBean.busiAreaName = jsonObject.getString("busiAreaName")
-    kafkaDataBean.adminAreaCode = jsonObject.getString("adminAreaCode")
-    kafkaDataBean.adminAreaName = jsonObject.getString("adminAreaName")
-    kafkaDataBean.fundcode = jsonObject.getString("nborrowmode")
-    kafkaDataBean.lamount = jsonObject.getInteger("lamount")
-    kafkaDataBean.userId = jsonObject.getString("userid")
-    kafkaDataBean.intentState = jsonObject.getInteger("nstate")
-    kafkaDataBean.opFlag = jsonObject.getString("opFlag")
+    kafkaDataBean.eventTime = jsonObject.getJSONObject("strloandate").getLong("value")
+    kafkaDataBean.deptCode = jsonObject.getJSONObject("strdeptcode").getString("value")
+    kafkaDataBean.deptName = jsonObject.getJSONObject("detpname").getString("value")
+    kafkaDataBean.busiAreaCode = jsonObject.getJSONObject("busiAreaCode").getString("value")
+    kafkaDataBean.busiAreaName = jsonObject.getJSONObject("busiAreaName").getString("value")
+    kafkaDataBean.adminAreaCode = jsonObject.getJSONObject("adminAreaCode").getString("value")
+    kafkaDataBean.adminAreaName = jsonObject.getJSONObject("adminAreaName").getString("value")
+    kafkaDataBean.fundcode = jsonObject.getJSONObject("nborrowmode").getString("value")
+    kafkaDataBean.lamount = jsonObject.getJSONObject("lamount").getInteger("value")
+    kafkaDataBean.userId = jsonObject.getJSONObject("userid").getString("value")
+    kafkaDataBean.intentState = jsonObject.getJSONObject("nstate").getInteger("value")
+    kafkaDataBean.opFlag = jsonObject.getJSONObject("opFlag").getString("value")
 
     var beforeRecord:JSONObject = jsonObject.getJSONObject("beforeRecord")
     kafkaDataBean.oldDeptCode = beforeRecord.getJSONObject("strdeptcode").getString("value")
     kafkaDataBean.oldDeptName = beforeRecord.getJSONObject("detpname").getString("value")
-    kafkaDataBean.oldAdminAreaCode = beforeRecord.getJSONObject("busiAreaCode").getString("value")
-    kafkaDataBean.oldAdminAreaName = beforeRecord.getJSONObject("busiAreaName").getString("value")
-
+    kafkaDataBean.oldBusiAreaCode = beforeRecord.getJSONObject("busiAreaCode").getString("value")
+    kafkaDataBean.oldBusiAreaName = beforeRecord.getJSONObject("adminAreaName").getString("value")
+    kafkaDataBean.oldAdminAreaCode = beforeRecord.getJSONObject("adminAreaCode").getString("value")
+    kafkaDataBean.oldAdminAreaName = beforeRecord.getJSONObject("adminAreaName").getString("value")
+    kafkaDataBean.oldfunCode = beforeRecord.getJSONObject("nborrowmode").getString("value")
+    kafkaDataBean.oldLamount = beforeRecord.getJSONObject("lamount").getInteger("value")
+    kafkaDataBean.oldIntentState = beforeRecord.getJSONObject("nstate").getInteger("value")
 
   }
 }

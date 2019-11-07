@@ -2,7 +2,7 @@ package com.dafy.sink
 
 import java.sql.{Connection, DriverManager, PreparedStatement, Timestamp}
 
-import com.dafy.bean.ReportDeptBean
+import com.dafy.bean.{ReportDeptBean, ReportOriginalDeptBean}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 
@@ -12,7 +12,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
   * @Author Albert
   *         Version v0.9
   */
-class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
+class MysqlSink extends  RichSinkFunction [ReportOriginalDeptBean]  {
 
   private var connection:Connection = null
   private var preparedStatement:PreparedStatement = null
@@ -50,7 +50,7 @@ class MysqlSink extends  RichSinkFunction [ReportDeptBean]  {
     }
   }
 
-  override def invoke(value: ReportDeptBean): Unit = {
+  override def invoke(value: ReportOriginalDeptBean): Unit = {
       try{
           preparedStatement.setTimestamp(1, new Timestamp(value.eventTime))
           preparedStatement.setString(2, value.deptCode)
