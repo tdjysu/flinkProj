@@ -5,8 +5,8 @@ import java.util.Properties
 
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.dafy.bean.{ReportDeptBean, ReportOriginalDeptBean}
-import com.dafy.sink.MysqlSink
-import com.dafy.watermark.IntentReportWatermarkScala
+import com.dafy.sink.{MysqlOriginalSink, MysqlSink}
+import com.dafy.watermark.{IntentOriginalWatermarkScala, IntentReportWatermarkScala}
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
@@ -102,7 +102,7 @@ object IntentReportOriginalAccuScala {
 //    scala 要引入 org.apache.flink.streaming.api.scala.OutputTag
     val outputTag = new OutputTag[ReportOriginalDeptBean]("late-data"){}
 
-    val resultData = filterData.assignTimestampsAndWatermarks( new IntentReportWatermarkScala())
+    val resultData = filterData.assignTimestampsAndWatermarks( new IntentOriginalWatermarkScala())
       .keyBy(_.deptCode)//定义分组字段
       .window(TumblingEventTimeWindows.of(Time.days(1)))//滚动统计1天的数据
       .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))//增加trigger,以一定的频率输出中间结果
@@ -161,10 +161,6 @@ object IntentReportOriginalAccuScala {
                 lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + 1)
                 lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
               }
-              case "US" =>{
-                lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() - 1)
-                lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() - lendAmount)
-              }
               case  "I" => {
                 lendCntState.update(if(lendCntState.value()== null) 0 else lendCntState.value() + 1)
                 lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
@@ -197,7 +193,7 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
 
 
     //将结果数据输出到Mysql
-      resultData.addSink(new MysqlSink("upsert","deptReportAccu"))
+      resultData.addSink(new MysqlOriginalSink("upsert","deptReportAccu"))
       env.execute(IntentReportAccuScala.getClass().getName)
 
   }
