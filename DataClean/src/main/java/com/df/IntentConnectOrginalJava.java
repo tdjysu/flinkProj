@@ -14,6 +14,9 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.Collector;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -40,9 +43,17 @@ public class IntentConnectOrginalJava {
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         FlinkKafkaConsumer010 myConsumer =  new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
-//        myConsumer.setStartFromLatest();
-//      获取kafka中的数据
-        DataStream data = env.addSource(myConsumer);
+        myConsumer.setStartFromLatest();
+//      获取kafka中表名为ods_p2p_tbborrowintent的数据
+        DataStream data = env.addSource(myConsumer).filter(line -> {
+            Boolean isIntent = false;
+            JSONObject jsonObject = JSONObject.parseObject(line.toString());
+            String tabName = jsonObject.getString("tableName");
+            if("ods_p2p_tbborrowintent".equals(tabName)){
+                isIntent = true;
+            }
+            return isIntent;
+        });
 
 //      从Redis中获取维度数据
         DataStream<HashMap<String, String[]>> dimData = env.addSource( new OrgaRedisSourceJava()).broadcast();
@@ -57,7 +68,8 @@ public class IntentConnectOrginalJava {
 
 
 
-        FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
+        FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String
+                >(new SimpleStringSchema()),outProp);
         resData.addSink(myProducer);
         env.execute("StreamingConnectCheckJava Job");
     }
@@ -67,55 +79,41 @@ public class IntentConnectOrginalJava {
         // Boolean的blocked用于记住单词是否在control流中，而且这些单词会从streamOfWords流中被过滤掉
         // 营业部维度关系
         HashMap<String,String[]>  orgDimMap = new HashMap<String,String[]>();
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         @Override
+
         public void open(Configuration config) {
 //            blocked = getRuntimeContext().getState(new ValueStateDescriptor<>("blocked", Boolean.class));
         }
 
         // control.connect(streamOfWords)顺序决定了control流中的元素会被Flink运行时执行flatMap1时传入处理；streamOfWords流中的元素会被Flink运行时执行flatMap2时传入处理
         @Override
-        public void flatMap1(String control_value, Collector<String> out) throws Exception {
+        public void flatMap1(String control_value, Collector<String> out)  {
 //System.out.println(control_value);
-            JSONObject jsonObject = JSONObject.parseObject(control_value);
-            String deptcode = jsonObject.getJSONObject("strdeptcode").getString("value");
+            try {
+                JSONObject jsonObject = JSONObject.parseObject(control_value);
+                String deptcode = jsonObject.getJSONObject("strdeptcode").getString("value");
+                if("021302746".equals(deptcode)) {
+ System.out.println(jsonObject.toJSONString());
+                }
+                String strloandt = jsonObject.getJSONObject("strloandate").getString("value");
+                Long levtime = 0L;
+
+                if (strloandt != null && !"".equals(strloandt)) {
+                    Date tmpDate = df.parse(strloandt);
+                    levtime = tmpDate.getTime();
+                }
 
 //          通过营业部编码获取其它组织机构信息
-            String[] orgArray = orgDimMap.get(deptcode);
+                String[] orgArray = orgDimMap.get(deptcode);
 
-            String detpname = "其他营业部";
-            String busiAreaCode = "9527404";
-            String busiAreaName = "其他中心";
-            String adminAreaCode = "9527404";
-            String adminAreaName = "其他区域";
+                String detpname = "其他营业部";
+                String busiAreaCode = "9527404";
+                String busiAreaName = "其他中心";
+                String adminAreaCode = "9527404";
+                String adminAreaName = "其他区域";
 
-            if(orgArray != null && orgArray.length == 5){
-                detpname = orgArray[0];
-                busiAreaCode = orgArray[1];
-                busiAreaName = orgArray[2];
-                adminAreaCode = orgArray[3];
-                adminAreaName = orgArray[4];
-            }
-
-            jsonObject.put("detpname",detpname);
-            jsonObject.put("busiAreaCode",busiAreaCode);
-            jsonObject.put("busiAreaName",busiAreaName);
-            jsonObject.put("adminAreaCode",adminAreaCode);
-            jsonObject.put("adminAreaName",adminAreaName);
-            JSONObject beforeRecord = jsonObject.getJSONObject("beforeRecord");
-            String oldDeptcode = null;
-            if(beforeRecord != null){
-                oldDeptcode = beforeRecord.getString("strdeptcode");
-            }
-            if(oldDeptcode != null) {
-                String oldOrgArray[] = orgDimMap.get(oldDeptcode);
-
-                String olddetpname = "其他营业部";
-                String oldbusiAreaCode = "9527404";
-                String oldbusiAreaName = "其他中心";
-                String oldadminAreaCode = "9527404";
-                String oldadminAreaName = "其他中心";
-
-                if(oldOrgArray != null && oldOrgArray.length == 5){
+                if (orgArray != null && orgArray.length == 5) {
                     detpname = orgArray[0];
                     busiAreaCode = orgArray[1];
                     busiAreaName = orgArray[2];
@@ -123,20 +121,52 @@ public class IntentConnectOrginalJava {
                     adminAreaName = orgArray[4];
                 }
 
-                olddetpname = oldOrgArray[0];
-                oldbusiAreaCode = oldOrgArray[1];
-                oldbusiAreaName = oldOrgArray[2];
-                oldadminAreaCode = oldOrgArray[3];
-                oldadminAreaName = oldOrgArray[4];
-                beforeRecord.put("detpname", olddetpname);
-                beforeRecord.put("busiAreaCode", oldbusiAreaCode);
-                beforeRecord.put("busiAreaName", oldbusiAreaName);
-                beforeRecord.put("adminAreaCode", oldadminAreaCode);
-                beforeRecord.put("adminAreaName", oldadminAreaName);
+                jsonObject.put("detpname", detpname);
+                jsonObject.put("busiAreaCode", busiAreaCode);
+                jsonObject.put("busiAreaName", busiAreaName);
+                jsonObject.put("adminAreaCode", adminAreaCode);
+                jsonObject.put("adminAreaName", adminAreaName);
+                jsonObject.put("strloandate", levtime);
+                JSONObject beforeRecord = jsonObject.getJSONObject("beforeRecord");
+                String oldDeptcode = null;
+                if (beforeRecord != null) {
+                    oldDeptcode = beforeRecord.getString("strdeptcode");
+                }
+                if (oldDeptcode != null) {
+                    String oldOrgArray[] = orgDimMap.get(oldDeptcode);
+
+                    String olddetpname = "其他营业部";
+                    String oldbusiAreaCode = "9527404";
+                    String oldbusiAreaName = "其他中心";
+                    String oldadminAreaCode = "9527404";
+                    String oldadminAreaName = "其他中心";
+                    String oldLoandate = beforeRecord.getJSONObject("strloandate").getString("value");
+                    Long oldLevtime = 0L;
+                    if (!"".equals(oldLoandate)) {
+                        oldLevtime = df.parse(oldLoandate).getTime();
+                    }
+
+                    if (oldOrgArray != null && oldOrgArray.length == 5) {
+                        olddetpname = oldOrgArray[0];
+                        oldbusiAreaCode = oldOrgArray[1];
+                        oldbusiAreaName = oldOrgArray[2];
+                        oldadminAreaCode = oldOrgArray[3];
+                        oldadminAreaName = oldOrgArray[4];
+                    }
+
+                    beforeRecord.put("strloandate", oldLevtime);
+                    beforeRecord.put("detpname", olddetpname);
+                    beforeRecord.put("busiAreaCode", oldbusiAreaCode);
+                    beforeRecord.put("busiAreaName", oldbusiAreaName);
+                    beforeRecord.put("adminAreaCode", oldadminAreaCode);
+                    beforeRecord.put("adminAreaName", oldadminAreaName);
+                }
+                jsonObject.put("beforeRecord", beforeRecord);
+                out.collect(jsonObject.toJSONString());
+//System.out.println(jsonObject.toJSONString());
+            }catch (Exception e){
+                e.printStackTrace();
             }
-            jsonObject.put("beforeRecord",beforeRecord);
-            out.collect(jsonObject.toJSONString());
- System.out.println(jsonObject.toJSONString());
 
         }
 

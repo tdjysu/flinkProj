@@ -32,6 +32,7 @@ class ReportOriginalDeptBean {
   var oldfunCode:String = _
   var oldLamount:Integer = 0
   var oldIntentState:Int = _
+  var oldLoandate:Long = _
 
 
 }
