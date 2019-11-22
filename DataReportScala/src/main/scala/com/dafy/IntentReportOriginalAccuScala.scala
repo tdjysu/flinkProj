@@ -1,9 +1,7 @@
 package com.dafy
 
-import java.lang
 import java.text.SimpleDateFormat
 import java.util.Properties
-
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.dafy.bean.{ReportDeptBean, ReportOriginalDeptBean}
 import com.dafy.sink.{MysqlOriginalSink, MysqlSink}
@@ -96,7 +94,7 @@ object IntentReportOriginalAccuScala {
       generateIntentBean(kafkaDataBean, jsonObject)
 
       kafkaDataBean
-})
+}).name("KafkaMapData")
 //过滤状态异常数据
     val filterData: DataStream[ReportOriginalDeptBean] = mapData.filter(new FilterFunction[ReportOriginalDeptBean] {
       override def filter(value: ReportOriginalDeptBean): Boolean = {
@@ -132,7 +130,6 @@ object IntentReportOriginalAccuScala {
 
       override def process(strkey: String, context: Context, elements: Iterable[ReportOriginalDeptBean], out: Collector[ReportOriginalDeptBean]): Unit = {
 
-
         //获取分组字段信息
         val deptcode: String = strkey
         // 存储时间，获取最后数据的时间
@@ -154,7 +151,6 @@ object IntentReportOriginalAccuScala {
         try {
           //          遍历全部窗口数据
           while (elementNode.hasNext) {
-
             var next: ReportOriginalDeptBean = elementNode.next()
             lendAmount = next.lamount
             deptName = next.deptName
@@ -207,7 +203,7 @@ println( "线程ID-> " +Thread.currentThread().getId  + " "  + evtime + " 营业
         }
       }
       }
-    })
+    }).name("DataConnectFunc")
 
 
     //将结果数据输出到Mysql

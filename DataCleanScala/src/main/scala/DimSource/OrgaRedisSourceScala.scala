@@ -15,7 +15,7 @@ class OrgaRedisSourceScala extends SourceFunction[mutable.Map[String,Array[Strin
   var jedis:Jedis =null
 
   override def run(ctx: SourceFunction.SourceContext[mutable.Map[String, Array[String]]]) = {
-    this.jedis = new Jedis("localhost",6379)
+    this.jedis = new Jedis("192.168.8.213",6379)
     import scala.collection.JavaConversions.mapAsScalaMap
 //  初始化从Redis中获取的Redis Map
     var redis_map = mutable.Map[String,String]()
