@@ -110,6 +110,14 @@ object IntentReportOriginalAccuScala {
     val outputTag = new OutputTag[ReportOriginalDeptBean]("late-data"){}
 
     val resultData = filterData.assignTimestampsAndWatermarks( new IntentOriginalWatermarkScala())
+
+
+
+
+
+
+
+
       .keyBy(_.deptCode)//定义分组字段
       .window(TumblingEventTimeWindows.of(Time.days(1)))//滚动统计1天的数据
       .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))//增加trigger,以一定的频率输出中间结果
@@ -132,7 +140,7 @@ object IntentReportOriginalAccuScala {
 
         //获取分组字段信息
         val deptcode: String = strkey
-        // 存储时间，获取最后数据的时间
+        // 存储时间，获取最后数据的时间同，，，，，，，，，，，，
         var timeBuf = ArrayBuffer[Long]()
         var deptName: String = ""
         var busiAreaCode: String = ""
