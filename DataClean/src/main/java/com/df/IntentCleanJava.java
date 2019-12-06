@@ -30,7 +30,7 @@ public class IntentCleanJava {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 //        指定kafka Source
-        String topic = "intent_t1";
+        String topic = "intent_n1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers",brokerList);
@@ -56,7 +56,7 @@ public class IntentCleanJava {
         // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
         DataStream<String> resData =  data.connect(dimData)
                 .flatMap(new ControlFunction());
-        String outTopic = "intent_t2";
+        String outTopic = "intent_t6";
         Properties outProp = new Properties();
         outProp.setProperty("bootstrap.servers", "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092");
 //      设置事务超时时间
@@ -91,7 +91,7 @@ public class IntentCleanJava {
             String fundcode = originalJSON.getJSONObject("nborrowmode").getString("value");
             String lamount = originalJSON.getJSONObject("lamount").getString("value");
             String nstate = originalJSON.getJSONObject("nstate").getString("value");
-            String deptcode = originalJSON.getString("strdeptcode");
+            String deptcode = originalJSON.getJSONObject("strdeptcode").getString("value");
             String dataOPFlag = "current";
 //          通过营业部编码获取其它组织机构信息
             String[] orgArray = orgDimMap.get(deptcode);
@@ -104,7 +104,7 @@ public class IntentCleanJava {
             JSONObject currentRecord = geneJSONRecord(intent_id,loandate,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lamount,nstate,dataOPFlag);
 
 
-            JSONObject oldJSON = originalJSON.getJSONObject("oldJSON");
+            JSONObject oldJSON = originalJSON.getJSONObject("beforeRecord");
 
             String oldDeptcode = "";
             String oldintent_id = "";
@@ -119,7 +119,7 @@ public class IntentCleanJava {
             String oldadminAreaName = "";
             String oldDataOPFlag = "before";
             if(oldJSON != null){
-                oldDeptcode = oldJSON.getString("strdeptcode");
+                oldDeptcode = oldJSON.getJSONObject("strdeptcode").getString("value");
                 oldintent_id = oldJSON.getJSONObject("lid").getString("value");
                 oldloandate = oldJSON.getJSONObject("strloandate").getString("value");
                 oldfundcode = oldJSON.getJSONObject("nborrowmode").getString("value");
