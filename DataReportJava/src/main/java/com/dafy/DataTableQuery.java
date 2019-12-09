@@ -33,12 +33,12 @@ public class DataTableQuery {
 
 
 //        指定kafka Source
-        String topic = "intent_n6";
+        String topic = "intent_t6";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
         String zookeeperList = "192.168.8.206:2181,192.168.8.207:2181,192.168.8.208:2181";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers", brokerList);
-        prop.setProperty("group.id", "con1");
+        prop.setProperty("group.id", "cont1");
 //      设置事务超时时间
         prop.setProperty("transaction.timeout.ms", 60000 * 15 + "");
 
@@ -64,24 +64,25 @@ public class DataTableQuery {
                 )
                 .withSchema(
                         new Schema()
-                                .field("nborrowmode", Types.STRING)
+                                .field("fundcode", Types.STRING)
                                 .field("deptcode", Types.STRING)
-                                .field("intentID", Types.STRING)
-                                .field("busiAreaCode", Types.STRING)
+                                .field("loandate", Types.SQL_TIMESTAMP)
+                                    .rowtime( new Rowtime()
+                                        .timestampsFromField("loandate")//通过字段指定event_time
+                                        .watermarksPeriodicBounded(60000)//延迟60秒生成WaterMark
+                                    )
+                                .field("dataOPFlag", Types.STRING)
+                                .field("detpname", Types.STRING)
+                                .field("user_id", Types.STRING)
+                                .field("busiAreaCode", Types.INT)
                                 .field("nstate", Types.STRING)
-                                .field("strloandate", Types.STRING)
-                                .field("userid", Types.INT)
-                                .field("adminAreaCode", Types.STRING)
+                                .field("intent_id", Types.STRING)
+                                .field("adminAreaCode", Types.INT)
                                 .field("adminAreaName", Types.STRING)
-                                .field("lamount", Types.INT)
-                                .field("deptname", Types.STRING)
                                 .field("busiAreaName", Types.STRING)
-                        .rowtime( new Rowtime()
-                                .timestampsFromField("strloandate")//通过字段指定event_time
-                                .watermarksPeriodicBounded(60000)//延迟60秒生成WaterMark
-                            )
-                )
+                                .field("lamount",Types.INT)
 
+                )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("intent_table");//注册表名为intent_table
 

@@ -14,6 +14,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.Collector;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -89,9 +90,10 @@ public class IntentCleanJava {
             String intent_id = originalJSON.getJSONObject("lid").getString("value");
             String loandate = originalJSON.getJSONObject("strloandate").getString("value");
             String fundcode = originalJSON.getJSONObject("nborrowmode").getString("value");
-            String lamount = originalJSON.getJSONObject("lamount").getString("value");
+            int lamount = originalJSON.getJSONObject("lamount").getInteger("value");
             String nstate = originalJSON.getJSONObject("nstate").getString("value");
             String deptcode = originalJSON.getJSONObject("strdeptcode").getString("value");
+            String user_id = originalJSON.getJSONObject("lborrowerid").getString("value");
             String dataOPFlag = "current";
 //          通过营业部编码获取其它组织机构信息
             String[] orgArray = orgDimMap.get(deptcode);
@@ -101,7 +103,7 @@ public class IntentCleanJava {
             String adminAreaCode = orgArray[3];
             String adminAreaName = orgArray[4];
 
-            JSONObject currentRecord = geneJSONRecord(intent_id,loandate,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lamount,nstate,dataOPFlag);
+            JSONObject currentRecord = geneJSONRecord(intent_id,loandate,deptcode,detpname,busiAreaCode,busiAreaName,adminAreaCode,adminAreaName,fundcode,lamount,nstate,dataOPFlag,user_id);
 
 
             JSONObject oldJSON = originalJSON.getJSONObject("beforeRecord");
@@ -110,7 +112,7 @@ public class IntentCleanJava {
             String oldintent_id = "";
             String oldloandate = "";
             String oldfundcode = "";
-            String oldlamount = "";
+            int oldlamount = 0;
             String oldnstate = "";
             String olddetpname = "";
             String oldbusiAreaCode = "";
@@ -118,13 +120,15 @@ public class IntentCleanJava {
             String oldadminAreaCode = "";
             String oldadminAreaName = "";
             String oldDataOPFlag = "before";
+            String oldUserId = "";
             if(oldJSON != null){
                 oldDeptcode = oldJSON.getJSONObject("strdeptcode").getString("value");
                 oldintent_id = oldJSON.getJSONObject("lid").getString("value");
                 oldloandate = oldJSON.getJSONObject("strloandate").getString("value");
                 oldfundcode = oldJSON.getJSONObject("nborrowmode").getString("value");
-                oldlamount = oldJSON.getJSONObject("lamount").getString("value");
+                oldlamount = 0 - oldJSON.getJSONObject("lamount").getInteger("value");
                 oldnstate = oldJSON.getJSONObject("nstate").getString("value");
+                oldUserId = oldJSON.getJSONObject("lborrowerid").getString("value");
             }
             if(oldDeptcode != null) {
                 String oldOrgArray[] = orgDimMap.get(oldDeptcode);
@@ -135,7 +139,7 @@ public class IntentCleanJava {
                 oldadminAreaName = oldOrgArray[4];
             }
 
-            JSONObject beforeRecord = geneJSONRecord(oldintent_id,oldloandate,oldDeptcode,olddetpname,oldbusiAreaCode,oldbusiAreaName,oldadminAreaCode,oldadminAreaName,oldfundcode,oldlamount,oldnstate,oldDataOPFlag);
+            JSONObject beforeRecord = geneJSONRecord(oldintent_id,oldloandate,oldDeptcode,olddetpname,oldbusiAreaCode,oldbusiAreaName,oldadminAreaCode,oldadminAreaName,oldfundcode,oldlamount,oldnstate,oldDataOPFlag,oldUserId);
 
 
             outJSONList.add(currentRecord);
@@ -160,11 +164,11 @@ public class IntentCleanJava {
 
     public static JSONObject  geneJSONRecord(String intent_id,String loandate,String deptcode,String detpname,String busiAreaCode,
                                 String busiAreaName,String adminAreaCode,String adminAreaName,String fundcode,
-                                String lamount,String nstate,String dataOPFlag){
+                                int lamount,String nstate,String dataOPFlag,String user_id){
         JSONObject jsonObject = new JSONObject();
 
         jsonObject.put("intent_id",intent_id);
-        jsonObject.put("loandate",loandate);
+        jsonObject.put("loandate", Timestamp.valueOf(loandate));
         jsonObject.put("deptcode",deptcode);
         jsonObject.put("detpname",detpname);
         jsonObject.put("busiAreaCode",busiAreaCode);
@@ -175,7 +179,7 @@ public class IntentCleanJava {
         jsonObject.put("lamount",lamount);
         jsonObject.put("nstate",nstate);
         jsonObject.put("dataOPFlag",dataOPFlag);
-
+        jsonObject.put("user_id",user_id);
         return jsonObject;
     }
 
