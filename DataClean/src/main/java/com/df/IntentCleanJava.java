@@ -15,10 +15,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.util.Collector;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * 数据清洗
@@ -165,21 +162,22 @@ public class IntentCleanJava {
     public static JSONObject  geneJSONRecord(String intent_id,String loandate,String deptcode,String detpname,String busiAreaCode,
                                 String busiAreaName,String adminAreaCode,String adminAreaName,String fundcode,
                                 int lamount,String nstate,String dataOPFlag,String user_id){
-        JSONObject jsonObject = new JSONObject();
+        JSONObject jsonObject = new JSONObject(new LinkedHashMap());
 
-        jsonObject.put("intent_id",intent_id);
-        jsonObject.put("loandate", Timestamp.valueOf(loandate));
+        jsonObject.put("fundcode",fundcode);
         jsonObject.put("deptcode",deptcode);
+        jsonObject.put("loandate", loandate);
+        jsonObject.put("dataOPFlag",dataOPFlag);
         jsonObject.put("detpname",detpname);
+        jsonObject.put("user_id",user_id);
         jsonObject.put("busiAreaCode",busiAreaCode);
-        jsonObject.put("busiAreaName",busiAreaName);
+        jsonObject.put("nstate",nstate);
+        jsonObject.put("intent_id",intent_id);
         jsonObject.put("adminAreaCode",adminAreaCode);
         jsonObject.put("adminAreaName",adminAreaName);
-        jsonObject.put("fundcode",fundcode);
+        jsonObject.put("busiAreaName",busiAreaName);
         jsonObject.put("lamount",lamount);
-        jsonObject.put("nstate",nstate);
-        jsonObject.put("dataOPFlag",dataOPFlag);
-        jsonObject.put("user_id",user_id);
+        jsonObject.put("eventtime", Timestamp.valueOf(loandate));
         return jsonObject;
     }
 

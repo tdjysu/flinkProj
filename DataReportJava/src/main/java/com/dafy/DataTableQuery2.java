@@ -17,12 +17,12 @@ import org.apache.flink.types.Row;
 import java.util.Properties;
 
 /**
- * @ClassName DataTableQuery
+ * @ClassName DataTableQuery2
  * @Description:TODO
  * @Author Albert
  * Version v0.9
  */
-public class DataTableQuery {
+public class DataTableQuery2 {
     public static void main(String[] args) {
         StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
         fsEnv.setParallelism(1);
@@ -38,7 +38,7 @@ public class DataTableQuery {
         String zookeeperList = "192.168.8.206:2181,192.168.8.207:2181,192.168.8.208:2181";
         Properties prop = new Properties();
         prop.setProperty("bootstrap.servers", brokerList);
-        prop.setProperty("group.id", "cont1");
+        prop.setProperty("group.id", "con1");
 //      设置事务超时时间
         prop.setProperty("transaction.timeout.ms", 60000 * 15 + "");
 
@@ -64,28 +64,26 @@ public class DataTableQuery {
                 )
                 .withSchema(
                         new Schema()
-                                .field("fundcode", Types.STRING)
+                                .field("nborrowmode", Types.STRING)
                                 .field("deptcode", Types.STRING)
-                                .field("loandate", Types.SQL_TIMESTAMP)
-                                .field("dataOPFlag", Types.STRING)
-                                .field("detpname", Types.STRING)
-                                .field("user_id", Types.STRING)
-                                .field("busiAreaCode", Types.INT)
+                                .field("intentID", Types.STRING)
+                                .field("busiAreaCode", Types.STRING)
                                 .field("nstate", Types.STRING)
-                                .field("intent_id", Types.STRING)
-                                .field("adminAreaCode", Types.INT)
+                                .field("strloandate", Types.STRING)
+                                .field("userid", Types.INT)
+                                .field("adminAreaCode", Types.STRING)
                                 .field("adminAreaName", Types.STRING)
+                                .field("lamount", Types.INT)
+                                .field("deptname", Types.STRING)
                                 .field("busiAreaName", Types.STRING)
-                                .field("lamount",Types.INT)
-                                .field("rowtime",Types.SQL_TIMESTAMP)
                                 .rowtime( new Rowtime()
-                                        .timestampsFromField("eventtime")//通过字段指定event_time
-                                        .watermarksPeriodicBounded(60000)//延迟60秒生成WaterMark
+                                        .timestampsFromField("strloandate")//通过字段指定event_time
+                                        .watermarksPeriodicBounded(60000)
                                 )
-
                 )
-                .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
-                .registerTableSource("intent_table");//注册表名为intent_table
+
+                .inAppendMode()
+                .registerTableSource("intent_table");
 
         String querySql = "select * from intent_table";
 
