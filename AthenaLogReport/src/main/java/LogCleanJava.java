@@ -1,4 +1,5 @@
 import DimSource.FuncMysqlSourceJava;
+import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -10,7 +11,9 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.Collector;
 
+import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Properties;
 
 /**
@@ -66,15 +69,47 @@ public class LogCleanJava {
 
     public static class FuncControlFunction extends RichCoFlatMapFunction<String, HashMap<String,String>, String> {
 
+        HashMap<String,String> funcMap = new HashMap<String,String>();
+
         @Override
-        public void flatMap1(String value, Collector<String> out) throws Exception {
+        public void flatMap1(String input1_value, Collector<String> out) throws Exception {
+            JSONObject originalJSON = JSONObject.parseObject(input1_value);
+            String appId= originalJSON.getString("appId");
+            String userId = originalJSON.getString("userId");
+            String userName= "";
+            String funcId = originalJSON.getString("funcId");
+            String orgCode = originalJSON.getString("orgCode");
+            String orgName = "";
+            String stropDate = originalJSON.getString("opDate");
+
+            String funcName = funcMap.get(funcId);
+
+            JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
+            out.collect(jsondata.toJSONString());
 
         }
 
         @Override
-        public void flatMap2(HashMap<String, String> value, Collector<String> out) throws Exception {
-
+        public void flatMap2(HashMap<String, String> dim_value, Collector<String> out) throws Exception {
+            this.funcMap = dim_value;
         }
+    }
+
+
+    public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
+                                           String userId,String userName ){
+        JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());
+        jsonobj.put("appID",appID);
+        jsonobj.put("funcId",funcId);
+        jsonobj.put("funcName",funcName);
+        jsonobj.put("stropDate",stropDate);
+        jsonobj.put("orgCode",orgCode);
+        jsonobj.put("orgName",orgName);
+        jsonobj.put("userId",userId);
+        jsonobj.put("userName",userName);
+        jsonobj.put("eventtime", Timestamp.valueOf(stropDate));
+
+        return  jsonobj;
     }
 
 }
