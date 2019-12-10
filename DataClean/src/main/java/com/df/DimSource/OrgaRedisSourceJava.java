@@ -22,7 +22,7 @@ public class OrgaRedisSourceJava implements SourceFunction<HashMap<String,String
     private Map<String,String> redisMapValue = new HashMap<String,String>();
     private String orgString = "";
     private Map<String,String[]> orgDimMap = new HashMap<String,String[]>();
-    @Override
+    @Override 
     public void run(SourceContext ctx) throws Exception {
         while (Running) {
             try {

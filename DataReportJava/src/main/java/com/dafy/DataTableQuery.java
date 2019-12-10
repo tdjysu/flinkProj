@@ -2,6 +2,7 @@ package com.dafy;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -25,6 +26,8 @@ import java.util.Properties;
 public class DataTableQuery {
     public static void main(String[] args) {
         StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+//      在系统中指定EventTime概念
+        fsEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         fsEnv.setParallelism(1);
 //      注册StreamEnv
         EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
@@ -78,10 +81,10 @@ public class DataTableQuery {
                                 .field("busiAreaName", Types.STRING)
                                 .field("lamount",Types.INT)
                                 .field("rowtime",Types.SQL_TIMESTAMP)
-                                .rowtime( new Rowtime()
+                                    .rowtime( new Rowtime()
                                         .timestampsFromField("eventtime")//通过字段指定event_time
                                         .watermarksPeriodicBounded(60000)//延迟60秒生成WaterMark
-                                )
+                                    )
 
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据

@@ -37,6 +37,7 @@ object IntentReportAccuScala {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     //修改并行度
     env.setParallelism(10)
+    //      在系统中指定EventTime概念
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     //checkPoint 设置
     env.enableCheckpointing(60000)
@@ -169,7 +170,6 @@ object IntentReportAccuScala {
                 lendAmtState.update(if(lendAmtState.value() == null) 0 else lendAmtState.value() + lendAmount)
               }
             }
-
           }
 
           var userCount: Integer = 0;

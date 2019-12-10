@@ -13,6 +13,7 @@
         <module>DataCleanScala</module>
         <module>DataReportJava</module>
         <module>DataReportScala</module>
+        <module>AthenaLogReport</module>
     </modules>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
