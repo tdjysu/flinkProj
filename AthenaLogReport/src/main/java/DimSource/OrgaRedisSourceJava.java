@@ -1,9 +1,10 @@
-package com.df.DimSource;
+package DimSource;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -16,7 +17,7 @@ public class OrgaRedisSourceJava implements SourceFunction<HashMap<String,String
     private boolean Running = true;
     private static Jedis myJedis = new Jedis(host,port);
     private final long SLEEP_MILLION = 5000;
-    private org.slf4j.Logger logger =  LoggerFactory.getLogger(DimSource4Redis.class);
+    private org.slf4j.Logger logger =  LoggerFactory.getLogger(OrgaRedisSourceJava.class);
     private Map<String,String> redisMapValue = new HashMap<String,String>();
     private String orgString = "";
     private Map<String,String[]> orgDimMap = new HashMap<String,String[]>();

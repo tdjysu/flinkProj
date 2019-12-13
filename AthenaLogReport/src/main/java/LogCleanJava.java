@@ -1,4 +1,5 @@
 import DimSource.FuncMysqlSourceJava;
+import DimSource.OrgaRedisSourceJava;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -14,6 +15,7 @@ import org.apache.flink.util.Collector;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -26,6 +28,7 @@ public class LogCleanJava {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
         String topic = "athena_t1";
         String outTopic = "athena_o1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
@@ -35,7 +38,11 @@ public class LogCleanJava {
 //设置事务超时时间
         prop.setProperty("transaction.timeout.ms",60000*15+"");
 
+
+//输出数据配置
         Properties outProp = new Properties();
+        outProp.setProperty("bootstrap.servers",brokerList);
+        outProp.setProperty("transaction.timeout.ms",60000*15+"");
 
 
         //      checkpoint配置
@@ -48,41 +55,42 @@ public class LogCleanJava {
 
 //设置kafka消费者
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
+//       从最新数据开始消费
+        kafkaConsumer.setStartFromLatest();
 //获取原生kafka中的数据
         DataStream kafkalog = env.addSource(kafkaConsumer);
+//从Mysql中获取功能维度数据
+        DataStream<Map<String, Map<String,String>>> funcDim = env.addSource(new FuncMysqlSourceJava()).broadcast();
+//从Redis中获取组织维度数据
+        DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).broadcast();
 
-        DataStream<HashMap<String,String>> funcDim = env.addSource(new FuncMysqlSourceJava()).broadcast();
 // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
         DataStream<String> resData = kafkalog.connect(funcDim).flatMap(new FuncControlFunction())
-                                        ;
-
-        outProp.setProperty("bootstrap.servers",brokerList);
-        outProp.setProperty("transaction.timeout.ms",60000*15+"");
+                                      .connect(orgDim).flatMap(new OrgdimControlFunction());
 
 
 
+//将最终结果输出到kafka
         FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
         resData.addSink(myProducer);
         env.execute(LogCleanJava.class.getName());
     }
 
-
-    public static class FuncControlFunction extends RichCoFlatMapFunction<String, HashMap<String,String>, String> {
-
-        HashMap<String,String> funcMap = new HashMap<String,String>();
+//将kafka日志数据与功能维度数据关联，补充功能维度数据
+    public static class FuncControlFunction extends RichCoFlatMapFunction<String, Map<String,Map<String,String>>, String> {
+        Map<String,Map<String,String>> dimMap = new HashMap<String,Map<String,String>>();
 
         @Override
         public void flatMap1(String input1_value, Collector<String> out) throws Exception {
             JSONObject originalJSON = JSONObject.parseObject(input1_value);
             String appId= originalJSON.getString("appId");
             String userId = originalJSON.getString("userId");
-            String userName= "";
+            String userName= dimMap.get("userMap").get(userId);
             String funcId = originalJSON.getString("funcId");
             String orgCode = originalJSON.getString("orgCode");
             String orgName = "";
             String stropDate = originalJSON.getString("opDate");
-
-            String funcName = funcMap.get(funcId);
+            String funcName = dimMap.get("funcMap").get(funcId);
 
             JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
             out.collect(jsondata.toJSONString());
@@ -90,12 +98,39 @@ public class LogCleanJava {
         }
 
         @Override
-        public void flatMap2(HashMap<String, String> dim_value, Collector<String> out) throws Exception {
-            this.funcMap = dim_value;
+        public void flatMap2(Map<String, Map<String,String>> dim_value, Collector<String> out) throws Exception {
+            this.dimMap = dim_value;
+        }
+    }
+
+//补充完功能维度数据后，再通过Redis数据补充组织机构数据
+    public static class OrgdimControlFunction extends RichCoFlatMapFunction<String,HashMap<String,String[]>,String>{
+        HashMap<String,String[]> orgDimMap = new HashMap<String,String[]>();
+        @Override
+        public void flatMap1(String input1_value, Collector<String> out) throws Exception {
+            JSONObject cleanJSON = JSONObject.parseObject(input1_value);
+            String appId= cleanJSON.getString("appId");
+            String userId = cleanJSON.getString("userId");
+            String userName= cleanJSON.getString("userName");
+            String funcId = cleanJSON.getString("funcId");
+            String orgCode = cleanJSON.getString("orgCode");
+            String orgName =   orgDimMap.get(orgCode)[0];;
+            String stropDate = cleanJSON.getString("stropDate");
+            String funcName = cleanJSON.getString("funcName");
+
+            JSONObject cleanJSONData = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
+//System.out.println(cleanJSON.toJSONString());
+            out.collect(cleanJSONData.toJSONString());
+        }
+
+        @Override
+        public void flatMap2(HashMap<String, String[]> value, Collector<String> out) throws Exception {
+            this.orgDimMap = value;
         }
     }
 
 
+//  根据日志数据组装JSON
     public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
                                            String userId,String userName ){
         JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());

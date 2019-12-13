@@ -93,7 +93,9 @@ public class DataTableQuery {
         String querySql = "select * from intent_table";
 
         Table intentTable = fsTableEnv.sqlQuery(querySql);
-
+//     表转化为流时,可以采用toAppendStream模式，即追加模式，
+//     只有在动态表仅通过insert更改时才能使用此模式，即它仅附加，并且以前发出的结果不会更新,
+//     若Table的数据会更新或删除，使用追加模式会报错
         DataStream<Row> rowDataStream = fsTableEnv.toAppendStream(intentTable, Row.class);
         intentTable.printSchema();
         rowDataStream.print();
