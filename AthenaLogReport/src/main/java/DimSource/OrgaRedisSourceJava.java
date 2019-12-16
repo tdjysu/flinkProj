@@ -1,6 +1,7 @@
 package DimSource;
 
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -10,7 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-public class OrgaRedisSourceJava implements SourceFunction<HashMap<String,String[]>> {
+public class OrgaRedisSourceJava extends RichParallelSourceFunction<HashMap<String,String[]>> {
 
     private static String host = "192.168.8.213";
     private static int port = 6379;

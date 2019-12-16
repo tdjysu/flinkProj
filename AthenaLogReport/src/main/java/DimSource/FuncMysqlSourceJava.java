@@ -2,12 +2,16 @@ package DimSource;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.table.expressions.CurrentTime;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.Currency;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -63,7 +67,11 @@ public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,
                 resultMap.put("userMap",userDimMap);
 
                 sourceContext.collect(resultMap);
-                Thread.sleep(600000);
+
+                Date day=new Date();
+                SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+System.out.println("MYSQL_Source is running  " + df.format(day));
+                Thread.sleep(10000);
             }catch (Exception ex){
                 logger.error("Mysql功能维度数据获取异常",ex.getCause());
             }finally {

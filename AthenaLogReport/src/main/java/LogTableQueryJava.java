@@ -81,17 +81,19 @@ public class LogTableQueryJava {
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-        String querySql = "select appID,funcName,userName,substring(actionTime,1,10) as actionDT,count(1) as pv " +
-                            "from log_table" +
-                            " group by appID,funcName,userName,substring(actionTime,1,10)," +
-                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )"
-                            ;
+//        String querySql = "select appID,funcName,userName,substring(actionTime,1,10) as actionDT,count(1) as pv " +
+//                            "from log_table" +
+//                            " group by " +
+//                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )," +
+//                            " appID,funcName,userName,substring(actionTime,1,10)"
+//                            ;
+        String querySql = "select * from log_table";
         Table logTable = tableEnv.sqlQuery(querySql);
 
         DataStream<Row> rowDataStream = tableEnv.toAppendStream(logTable,Row.class);
         logTable.printSchema();
-        tableEnv.toRetractStream(logTable, Row.class).print();
-//        rowDataStream.print();
+//        tableEnv.toAppendStream(logTable, Row.class).print();
+        rowDataStream.print();
 
         try {
             tableEnv.execute(LogTableQueryJava.class.getName());

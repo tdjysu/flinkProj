@@ -22,7 +22,7 @@ import java.util.*;
  * @Author Albert
  * Version v0.9
  */
-public class LogCleanJava {
+public class LogCleanProcessJava {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -72,7 +72,7 @@ public class LogCleanJava {
 //将最终结果输出到kafka
         FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
         resData.addSink(myProducer);
-        env.execute(LogCleanJava.class.getName());
+        env.execute(LogCleanProcessJava.class.getName());
     }
 
 //将kafka日志数据与功能维度数据关联，补充功能维度数据
