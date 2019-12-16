@@ -1,11 +1,19 @@
+import DimSource.FuncMysqlSingleSourceJava;
 import DimSource.FuncMysqlSourceJava;
 import DimSource.OrgaRedisSourceJava;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.state.BroadcastState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
@@ -24,6 +32,11 @@ import java.util.*;
  */
 public class LogCleanProcessJava {
 
+    final static MapStateDescriptor<String, String> dims_map = new MapStateDescriptor<String, String>(
+            "dims_map",
+            BasicTypeInfo.STRING_TYPE_INFO,
+            BasicTypeInfo.STRING_TYPE_INFO);
+
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
@@ -35,6 +48,8 @@ public class LogCleanProcessJava {
         prop.setProperty("group.id","ana1");
 //设置事务超时时间
         prop.setProperty("transaction.timeout.ms",60000*15+"");
+
+
 
 
 //输出数据配置
@@ -56,17 +71,44 @@ public class LogCleanProcessJava {
 //       从最新数据开始消费
         kafkaConsumer.setStartFromLatest();
 //获取原生kafka中的数据
-        DataStream kafkalog = env.addSource(kafkaConsumer);
+        DataStream<String> kafkalog = env.addSource(kafkaConsumer);
 //从Mysql中获取功能维度数据
-        DataStream<Map<String, Map<String,String>>> funcDim = env.addSource(new FuncMysqlSourceJava()).setParallelism(4).broadcast();
+        BroadcastStream<Map<String, String>> funcDim = env.addSource(new FuncMysqlSingleSourceJava()).setParallelism(1).broadcast(dims_map);
 //从Redis中获取组织维度数据
         DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(4).broadcast();
 
 // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
-        DataStream<String> resData = kafkalog.connect(funcDim).flatMap(new FuncControlFunction())
-                                      .connect(orgDim).flatMap(new OrgdimControlFunction());
+        SingleOutputStreamOperator<String> resData = kafkalog.connect(funcDim).process(new BroadcastProcessFunction<String, Map<String, String>, String>() {
+            private MapStateDescriptor<String, String> dimsMapStateDescriptor;
 
+            @Override
+            public void processElement(String input1_value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
+                ReadOnlyBroadcastState<String, String> dimMap = ctx.getBroadcastState(dimsMapStateDescriptor);
+//System.out.println( "DimMap.size->" +  dimMap.size());
+                JSONObject originalJSON = JSONObject.parseObject(input1_value);
+                String appId= originalJSON.getString("appId");
+                String userId = originalJSON.getString("userId");
+                String userName= "";//dimMap.get("userMap").get(userId)"";
+                String funcId = originalJSON.getString("funcId");
+                String orgCode = originalJSON.getString("orgCode");
+                String orgName = "";
+                String stropDate = originalJSON.getString("opDate");
+                String funcName = dimMap.get(funcId);
 
+                JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
+//System.out.println(jsondata.toJSONString());
+                out.collect(jsondata.toJSONString());
+
+            }
+
+            @Override
+            public void processBroadcastElement(Map<String, String> mapValue, Context context, Collector<String> collector) throws Exception {
+                BroadcastState<String, String> dimMap = context.getBroadcastState(dimsMapStateDescriptor);
+                for (Map.Entry<String, String> entry : mapValue.entrySet()) {
+                    dimMap.put(entry.getKey(), entry.getValue());
+                }
+            }
+        });
 
 
 //将最终结果输出到kafka
