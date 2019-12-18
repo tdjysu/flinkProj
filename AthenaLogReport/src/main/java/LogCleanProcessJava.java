@@ -1,5 +1,4 @@
 import DimSource.FuncMysqlSingleSourceJava;
-import DimSource.FuncMysqlSourceJava;
 import DimSource.OrgaRedisSourceJava;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -39,7 +38,6 @@ public class LogCleanProcessJava {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4);
         String topic = "athena_t1";
         String outTopic = "athena_o1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
@@ -48,9 +46,6 @@ public class LogCleanProcessJava {
         prop.setProperty("group.id","ana1");
 //设置事务超时时间
         prop.setProperty("transaction.timeout.ms",60000*15+"");
-
-
-
 
 //输出数据配置
         Properties outProp = new Properties();
@@ -71,38 +66,45 @@ public class LogCleanProcessJava {
 //       从最新数据开始消费
         kafkaConsumer.setStartFromLatest();
 //获取原生kafka中的数据
-        DataStream<String> kafkalog = env.addSource(kafkaConsumer);
+        DataStream<String> kafkalog = env.addSource(kafkaConsumer).setParallelism(4);
 //从Mysql中获取功能维度数据
         BroadcastStream<Map<String, String>> funcDim = env.addSource(new FuncMysqlSingleSourceJava()).setParallelism(1).broadcast(dims_map);
 //从Redis中获取组织维度数据
-        DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(4).broadcast();
+        DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(1).broadcast();
 
 // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
         SingleOutputStreamOperator<String> resData = kafkalog.connect(funcDim).process(new BroadcastProcessFunction<String, Map<String, String>, String>() {
-            private MapStateDescriptor<String, String> dimsMapStateDescriptor;
+            private MapStateDescriptor<String, String> dimsMapStateDescriptor =  new MapStateDescriptor<String, String>(
+                    "dims_map",
+                    BasicTypeInfo.STRING_TYPE_INFO,
+                    BasicTypeInfo.STRING_TYPE_INFO);
 
             @Override
-            public void processElement(String input1_value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-                ReadOnlyBroadcastState<String, String> dimMap = ctx.getBroadcastState(dimsMapStateDescriptor);
-//System.out.println( "DimMap.size->" +  dimMap.size());
-                JSONObject originalJSON = JSONObject.parseObject(input1_value);
-                String appId= originalJSON.getString("appId");
-                String userId = originalJSON.getString("userId");
-                String userName= "";//dimMap.get("userMap").get(userId)"";
-                String funcId = originalJSON.getString("funcId");
-                String orgCode = originalJSON.getString("orgCode");
-                String orgName = "";
-                String stropDate = originalJSON.getString("opDate");
-                String funcName = dimMap.get(funcId);
-
-                JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
+            public void processElement(String input1_value, ReadOnlyContext ctx, Collector<String> out)  {
+                try {
+                    ReadOnlyBroadcastState<String, String> dimMap = ctx.getBroadcastState(dimsMapStateDescriptor);
+//System.out.println( "DimMap.size->" +  dimMap.l);
+                    JSONObject originalJSON = JSONObject.parseObject(input1_value);
+                    String appId= originalJSON.getString("appId");
+                    String userId = originalJSON.getString("userId");
+                    String userName= "";//dimMap.get("userMap").get(userId)"";
+                    String funcId = originalJSON.getString("funcId");
+                    String orgCode = originalJSON.getString("orgCode");
+                    String orgName = "";
+                    String stropDate = originalJSON.getString("opDate");
+                    String funcName = null;
+                    funcName = dimMap.get(funcId);
+                    JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
 //System.out.println(jsondata.toJSONString());
-                out.collect(jsondata.toJSONString());
-
+                    out.collect(jsondata.toJSONString());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
 
             @Override
             public void processBroadcastElement(Map<String, String> mapValue, Context context, Collector<String> collector) throws Exception {
+//System.out.println("processBroadcastElement is running ");
                 BroadcastState<String, String> dimMap = context.getBroadcastState(dimsMapStateDescriptor);
                 for (Map.Entry<String, String> entry : mapValue.entrySet()) {
                     dimMap.put(entry.getKey(), entry.getValue());
@@ -117,39 +119,6 @@ public class LogCleanProcessJava {
         env.execute(LogCleanProcessJava.class.getName());
     }
 
-//将kafka日志数据与功能维度数据关联，补充功能维度数据
-    public static class FuncControlFunction extends RichCoFlatMapFunction<String, Map<String,Map<String,String>>, String> {
-        Map<String,Map<String,String>> dimMap = new HashMap<String,Map<String,String>>();
-
-        @Override
-        public void flatMap1(String input1_value, Collector<String> out) {
-
-//System.out.println( "DimMap.size->" +  dimMap.size());
-            JSONObject originalJSON = JSONObject.parseObject(input1_value);
-            String appId= originalJSON.getString("appId");
-            String userId = originalJSON.getString("userId");
-            String userName= dimMap.get("userMap").get(userId);
-            String funcId = originalJSON.getString("funcId");
-            String orgCode = originalJSON.getString("orgCode");
-            String orgName = "";
-            String stropDate = originalJSON.getString("opDate");
-            String funcName = dimMap.get("funcMap").get(funcId);
-
-            JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
-//System.out.println(jsondata.toJSONString());
-            out.collect(jsondata.toJSONString());
-
-        }
-
-        @Override
-        public void flatMap2(Map<String, Map<String,String>> dim_value, Collector<String> out) throws Exception {
-            Date day=new Date();
-            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-System.out.println(   df.format(day) + " 当前线程ID-->" +Thread.currentThread().getId()+ " dim_value.size->"+dim_value.size()+"  DimMap.size->" +  dimMap.size());
-
-            this.dimMap = dim_value;
-        }
-    }
 
 //补充完功能维度数据后，再通过Redis数据补充组织机构数据
     public static class OrgdimControlFunction extends RichCoFlatMapFunction<String,HashMap<String,String[]>,String>{

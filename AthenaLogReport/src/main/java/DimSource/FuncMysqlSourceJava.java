@@ -45,8 +45,8 @@ public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,
 
     @Override
     public void run(SourceContext sourceContext) throws Exception {
-        while (Running) {
-            try {
+        try {
+            while (Running) {
                 funcDimMap.clear();
                 ResultSet funcResultSet = funcps.executeQuery();
                 while (funcResultSet.next()) {
@@ -70,15 +70,16 @@ public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,
 
                 Date day=new Date();
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-System.out.println("MYSQL_Source is running  " + df.format(day));
+//System.out.println("MYSQL_Source is running  " + df.format(day));
                 Thread.sleep(10000);
+              }
             }catch (Exception ex){
                 logger.error("Mysql功能维度数据获取异常",ex.getCause());
             }finally {
                 connection.close();
             }
 
-        }
+
     }
     @Override
     public void cancel() {

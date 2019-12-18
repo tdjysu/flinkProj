@@ -56,28 +56,28 @@ public class LogTableQueryJava {
 
         //      checkpoint配置
         env.enableCheckpointing(5000);//每5秒检查一次
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+//        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);//最小检查间隔 30秒
         env.getCheckpointConfig().setCheckpointTimeout(60000);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        tableEnv.connect(kafka).withFormat( new Json().failOnMissingField(true).deriveSchema())
+        tableEnv.connect(kafka).withFormat( new Json().failOnMissingField(false).deriveSchema())
                 .withSchema(
                         new Schema()
-                        .field("appID", Types.STRING)
+                        .field("appId", Types.STRING)
                         .field("funcId",Types.STRING)
                         .field("funcName",Types.STRING)
-                        .field("actionTime",Types.STRING)
+                        .field("stropDate",Types.STRING)
                         .field("orgCode",Types.STRING)
                         .field("orgName",Types.STRING)
                         .field("userId",Types.STRING)
                         .field("userName",Types.STRING)
-                        .field("rowtime",Types.SQL_TIMESTAMP)
-                            .rowtime( new Rowtime()
-                                    .timestampsFromField("eventtime")//通过字段指定event_time
-                                    .watermarksPeriodicBounded(60000)//延迟60秒生成watermark
-                                )
+                        .field("logoptime",Types.SQL_TIMESTAMP)
+//                            .rowtime( new Rowtime()
+//                                    .timestampsFromField("eventtime")//通过字段指定event_time
+//                                    .watermarksPeriodicBounded(60000)//延迟60秒生成watermark
+//                                )
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
@@ -87,19 +87,22 @@ public class LogTableQueryJava {
 //                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )," +
 //                            " appID,funcName,userName,substring(actionTime,1,10)"
 //                            ;
-        String querySql = "select * from log_table";
-        Table logTable = tableEnv.sqlQuery(querySql);
+//
+       try {
+             String querySql = "select * from log_table";
+             Table logTable = tableEnv.sqlQuery(querySql);
 
-        DataStream<Row> rowDataStream = tableEnv.toAppendStream(logTable,Row.class);
-        logTable.printSchema();
-//        tableEnv.toAppendStream(logTable, Row.class).print();
-        rowDataStream.print();
+             tableEnv.toAppendStream(logTable,Row.class).print();
+             logTable.printSchema();
 
-        try {
-            tableEnv.execute(LogTableQueryJava.class.getName());
-        } catch (Exception e) {
+//             tableEnv.toAppendStream(logTable, Row.class).print();
+//             rowDataStream.print();
+
+             env.execute(LogTableQueryJava.class.getName());
+           } catch (Exception e) {
             e.printStackTrace();
-        }
+           }
+
 
 
     }

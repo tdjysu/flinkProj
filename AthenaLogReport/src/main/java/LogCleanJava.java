@@ -58,7 +58,7 @@ public class LogCleanJava {
 //获取原生kafka中的数据
         DataStream kafkalog = env.addSource(kafkaConsumer);
 //从Mysql中获取功能维度数据
-        DataStream<Map<String, Map<String,String>>> funcDim = env.addSource(new FuncMysqlSourceJava()).setParallelism(4).broadcast();
+        DataStream<Map<String, Map<String,String>>> funcDim = env.addSource(new FuncMysqlSourceJava()).setParallelism(1).broadcast();
 //从Redis中获取组织维度数据
         DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(4).broadcast();
 
@@ -103,7 +103,7 @@ public class LogCleanJava {
         public void flatMap2(Map<String, Map<String,String>> dim_value, Collector<String> out) throws Exception {
             Date day=new Date();
             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-System.out.println(   df.format(day) + " 当前线程ID-->" +Thread.currentThread().getId()+ " dim_value.size->"+dim_value.size()+"  DimMap.size->" +  dimMap.size());
+//System.out.println(   df.format(day) + " 当前线程ID-->" +Thread.currentThread().getId()+ " dim_value.size->"+dim_value.size()+"  DimMap.size->" +  dimMap.size());
 
             this.dimMap = dim_value;
         }
@@ -140,7 +140,7 @@ System.out.println(   df.format(day) + " 当前线程ID-->" +Thread.currentThrea
     public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
                                            String userId,String userName ){
         JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());
-        jsonobj.put("appID",appID);
+        jsonobj.put("appId",appID);
         jsonobj.put("funcId",funcId);
         jsonobj.put("funcName",funcName);
         jsonobj.put("stropDate",stropDate);
@@ -148,7 +148,7 @@ System.out.println(   df.format(day) + " 当前线程ID-->" +Thread.currentThrea
         jsonobj.put("orgName",orgName);
         jsonobj.put("userId",userId);
         jsonobj.put("userName",userName);
-        jsonobj.put("eventtime", Timestamp.valueOf(stropDate));
+        jsonobj.put("logoptime",Timestamp.valueOf(stropDate).getTime());
 
         return  jsonobj;
     }
