@@ -81,8 +81,8 @@ public class LogTableQueryJava {
                                     .watermarksPeriodicBounded(60000)//延迟60秒生成watermark
                                 )
                 )
-//                .inRetractMode()
-                .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
+                .inRetractMode()
+//                .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
 //        String querySql = "select appId,funcName,userName,substring(stropDate,1,10) as actionDT,count(1) as pv " +
 //                            "from log_table" +
@@ -92,19 +92,17 @@ public class LogTableQueryJava {
 //                            ;
 
 
-//                String querySql = "select appId,funcName,userName,substring(stropDate,1,10) as actionDT,count(1) as pv " +
-//                            "from log_table" +
-//                            " group by " +
-//                            " appId,funcName,userName,substring(stropDate,1,10)"
-//                            ;
+                String querySql = "select funcName,count(1) as pv " +
+                            "from log_table" +
+                            " group by funcName";
        try {
-             String querySql = "select * from log_table";
+//             String querySql = "select * from log_table";
              Table logTable = tableEnv.sqlQuery(querySql);
 
-//             tableEnv.toRetractStream(logTable,logPOJO.class).print();
+             tableEnv.toRetractStream(logTable,Row.class).print();
              logTable.printSchema();
 
-             tableEnv.toAppendStream(logTable, Row.class).print();
+//             tableEnv.toAppendStream(logTable, Row.class).print();
 //             rowDataStream.print();
 
              env.execute(LogTableQueryJava.class.getName());
