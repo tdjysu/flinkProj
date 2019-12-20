@@ -12,7 +12,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.Collector;
 
-import java.sql.Timestamp;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -140,6 +140,8 @@ public class LogCleanJava {
     public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
                                            String userId,String userName ){
         JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());
+        try {
+
         jsonobj.put("appId",appID);
         jsonobj.put("funcId",funcId);
         jsonobj.put("funcName",funcName);
@@ -148,8 +150,15 @@ public class LogCleanJava {
         jsonobj.put("orgName",orgName);
         jsonobj.put("userId",userId);
         jsonobj.put("userName",userName);
-        jsonobj.put("logoptime",Timestamp.valueOf(stropDate).getTime());
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        SimpleDateFormat dayformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date day = dayformat.parse(stropDate);
+        String str = format.format(day);
+        jsonobj.put("logoptime",str);
 
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
         return  jsonobj;
     }
 
