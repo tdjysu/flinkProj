@@ -1,5 +1,6 @@
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -34,9 +35,10 @@ public class LogTableQueryJava {
         env.setParallelism(1);
 //注册StreamSetting
         EnvironmentSettings fssettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
-// 注册流表TableEnv
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
 
+// 注册流表TableEnv
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+//        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
 
 //        指定kafka Source
         String topic = "athena_o1";
@@ -54,6 +56,9 @@ public class LogTableQueryJava {
                 .property("bootstrap.servers", brokerList)
                 .property("zookeeper.connect", zookeeperList)
                 .property("transaction.timeout.ms", 60000 * 15 + "")
+                .property("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+                .property("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+                .property("group.id", "test6")
                 .startFromLatest();
 
         //      checkpoint配置
@@ -81,29 +86,25 @@ public class LogTableQueryJava {
                                     .watermarksPeriodicBounded(60000)//延迟60秒生成watermark
                                 )
                 )
-                .inRetractMode()
-//                .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
+                .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-//        String querySql = "select appId,funcName,userName,substring(stropDate,1,10) as actionDT,count(1) as pv " +
-//                            "from log_table" +
-//                            " group by " +
-//                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )," +
-//                            " appId,funcName,userName,substring(stropDate,1,10)"
-//                            ;
-
-
-                String querySql = "select funcName,count(1) as pv " +
+        String querySql = "select appId,funcName,userName,substring(stropDate,1,10) as actionDT,count(1) as pv " +
                             "from log_table" +
-                            " group by funcName";
+                            " group by " +
+                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )," +
+                            " appId,funcName,userName,substring(stropDate,1,10)"
+                            ;
+//
+//                String querySql = "select funcName,count(1) as pv " +
+//                            "from log_table" +
+//                            " group by funcName";
        try {
 //             String querySql = "select * from log_table";
              Table logTable = tableEnv.sqlQuery(querySql);
-
-             tableEnv.toRetractStream(logTable,Row.class).print();
              logTable.printSchema();
 
-//             tableEnv.toAppendStream(logTable, Row.class).print();
-//             rowDataStream.print();
+           DataStream rowDataStream = tableEnv.toRetractStream(logTable,Row.class);
+           rowDataStream.print();
 
              env.execute(LogTableQueryJava.class.getName());
            } catch (Exception e) {
@@ -126,6 +127,7 @@ public class LogTableQueryJava {
         public String orgCode;
         public String orgName;
         public String userId;
+
         public String userName;
         public Timestamp rowtime;
     }
