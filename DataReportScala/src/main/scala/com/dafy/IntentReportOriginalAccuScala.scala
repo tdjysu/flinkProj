@@ -111,13 +111,6 @@ object IntentReportOriginalAccuScala {
 
     val resultData = filterData.assignTimestampsAndWatermarks( new IntentOriginalWatermarkScala())
 
-
-
-
-
-
-
-
       .keyBy(_.deptCode)//定义分组字段
       .window(TumblingEventTimeWindows.of(Time.days(1)))//滚动统计1天的数据
       .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))//增加trigger,以一定的频率输出中间结果

@@ -16,6 +16,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.sun.tools.javadoc.Main.execute;
+
 /**
  * @ClassName LogCleanJava
  * @Description:清洗雅典娜平台点击日志数据，并补充相关维度数据
@@ -66,13 +68,10 @@ public class LogCleanJava {
         DataStream<String> resData = kafkalog.connect(funcDim).flatMap(new FuncControlFunction())
                                       .connect(orgDim).flatMap(new OrgdimControlFunction());
 
-
-
-
 //将最终结果输出到kafka
         FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
         resData.addSink(myProducer);
-        env.execute(LogCleanJava.class.getName());
+        env.setParallelism(4).execute(LogCleanJava.class.getName());
     }
 
 //将kafka日志数据与功能维度数据关联，补充功能维度数据
@@ -95,6 +94,7 @@ public class LogCleanJava {
 
             JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
 //System.out.println(jsondata.toJSONString());
+
             out.collect(jsondata.toJSONString());
 
         }
@@ -135,26 +135,24 @@ public class LogCleanJava {
         }
     }
 
-
 //  根据日志数据组装JSON
     public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
                                            String userId,String userName ){
         JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());
         try {
-
-        jsonobj.put("appId",appID);
-        jsonobj.put("funcId",funcId);
-        jsonobj.put("funcName",funcName);
-        jsonobj.put("stropDate",stropDate);
-        jsonobj.put("orgCode",orgCode);
-        jsonobj.put("orgName",orgName);
-        jsonobj.put("userId",userId);
-        jsonobj.put("userName",userName);
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        SimpleDateFormat dayformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date day = dayformat.parse(stropDate);
-        String str = format.format(day);
-        jsonobj.put("logoptime",str);
+              jsonobj.put("appId",appID);
+              jsonobj.put("funcId",funcId);
+              jsonobj.put("funcName",funcName);
+              jsonobj.put("stropDate",stropDate);
+              jsonobj.put("orgCode",orgCode);
+              jsonobj.put("orgName",orgName);
+              jsonobj.put("userId",userId);
+              jsonobj.put("userName",userName);
+              SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+              SimpleDateFormat dayformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+              Date day = dayformat.parse(stropDate);
+              String str = format.format(day);
+              jsonobj.put("logoptime",str);
 
         } catch (ParseException e) {
             e.printStackTrace();

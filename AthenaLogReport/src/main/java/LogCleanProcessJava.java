@@ -151,15 +151,24 @@ public class LogCleanProcessJava {
     public static JSONObject geneJSONData(String appID,String funcId,String funcName,String stropDate,String orgCode,String orgName,
                                            String userId,String userName ){
         JSONObject jsonobj = new JSONObject(new LinkedHashMap<>());
-        jsonobj.put("appID",appID);
-        jsonobj.put("funcId",funcId);
-        jsonobj.put("funcName",funcName);
-        jsonobj.put("stropDate",stropDate);
-        jsonobj.put("orgCode",orgCode);
-        jsonobj.put("orgName",orgName);
-        jsonobj.put("userId",userId);
-        jsonobj.put("userName",userName);
-        jsonobj.put("eventtime", Timestamp.valueOf(stropDate));
+        try {
+            jsonobj.put("appId",appID);
+            jsonobj.put("funcId",funcId);
+            jsonobj.put("funcName",funcName);
+            jsonobj.put("stropDate",stropDate);
+            jsonobj.put("orgCode",orgCode);
+            jsonobj.put("orgName",orgName);
+            jsonobj.put("userId",userId);
+            jsonobj.put("userName",userName);
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            SimpleDateFormat dayformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            Date day = dayformat.parse(stropDate);
+            String str = format.format(day);
+            jsonobj.put("logoptime", str);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
 
         return  jsonobj;
     }

@@ -10,6 +10,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
@@ -70,12 +71,13 @@ public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,
 
                 Date day=new Date();
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-//System.out.println("MYSQL_Source is running  " + df.format(day));
+System.out.println("ThreadID-->" + Thread.currentThread().getName() + "  MYSQL_Source is running  " + df.format(day));
                 Thread.sleep(10000);
               }
             }catch (Exception ex){
-                logger.error("Mysql功能维度数据获取异常",ex.getCause());
+                ex.printStackTrace();
             }finally {
+            System.out.println("Connection is closed");
                 connection.close();
             }
 
