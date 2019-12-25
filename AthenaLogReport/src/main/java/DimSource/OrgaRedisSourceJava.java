@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-public class OrgaRedisSourceJava extends RichParallelSourceFunction<HashMap<String,String[]>> {
+public class OrgaRedisSourceJava extends RichParallelSourceFunction<Map<String,String[]>> {
 
     private static String host = "192.168.8.213";
     private static int port = 6379;

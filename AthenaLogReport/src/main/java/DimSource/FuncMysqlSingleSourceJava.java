@@ -21,14 +21,16 @@ import java.util.Map;
  * @Author Albert
  * Version v0.9
  */
-public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map<String,String>> {
+public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map> {
 
     private boolean Running = true;
     private PreparedStatement funcps;
     private PreparedStatement userps;
+    private Map<String,String> funcDimMap = new HashMap<String,String>();
+    private Map<String,String> userDimMap = new HashMap<String,String>();
     private Connection connection;
     private org.slf4j.Logger logger =  LoggerFactory.getLogger(FuncMysqlSingleSourceJava.class);
-
+    private Map<String,Map<String,String>> resultMap = new HashMap<String,Map<String,String>>();
 
     // 用来建立连接
     @Override
@@ -43,20 +45,27 @@ public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map<St
 
     @Override
     public void run(SourceContext sourceContext) throws Exception {
-        Map<String,String> funcDimMap = new HashMap<String,String>();
             try {
                 while (Running) {
-                    Date day=new Date();
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-System.out.println("mysql is running " + df.format(day));
                     funcDimMap.clear();
                     ResultSet funcResultSet = funcps.executeQuery();
                     while (funcResultSet.next()) {
-                         String func_id = funcResultSet.getString("func_id");
-                         String func_name = funcResultSet.getString("func_name");
-                         funcDimMap.put(func_id, func_name);
-                     }
-                    sourceContext.collect(funcDimMap);
+                        String func_id = funcResultSet.getString("func_id");
+                        String func_name = funcResultSet.getString("func_name");
+                        funcDimMap.put(func_id, func_name);
+                    }
+
+                    userDimMap.clear();
+                    ResultSet userResultSet = userps.executeQuery();
+                    while (userResultSet.next()){
+                        String user_id = userResultSet.getString("user_id");
+                        String user_name = userResultSet.getString("user_name");
+                        userDimMap.put(user_id,user_name);
+                    }
+                    resultMap.clear();
+                    resultMap.put("funcMap",funcDimMap);
+                    resultMap.put("userMap",userDimMap);
+                    sourceContext.collect(resultMap);
                      Thread.sleep(60000);
                 }
             }catch (Exception ex){

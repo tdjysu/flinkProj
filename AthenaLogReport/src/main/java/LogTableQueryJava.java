@@ -14,7 +14,6 @@ import org.apache.flink.types.Row;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.sql.Timestamp;
 import java.util.Properties;
 
@@ -34,6 +33,7 @@ public class LogTableQueryJava {
 //设置并行度为1
         env.setParallelism(1);
 //注册StreamSetting
+
         EnvironmentSettings fssettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 
 // 注册流表TableEnv
@@ -80,7 +80,7 @@ public class LogTableQueryJava {
                         .field("orgName",Types.STRING)
                         .field("userId",Types.STRING)
                         .field("userName",Types.STRING)
-                        .field("rowtime",Types.SQL_TIMESTAMP)
+                        .field("rowtime",Types.SQL_TIMESTAMP)//  格式"2019-12-24T09:29:45.000Z"
                             .rowtime( new Rowtime()
                                     .timestampsFromField("logoptime")//通过字段指定event_time
                                     .watermarksPeriodicBounded(60000)//延迟60秒生成watermark

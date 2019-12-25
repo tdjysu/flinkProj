@@ -62,7 +62,7 @@ public class LogCleanJava {
 //从Mysql中获取功能维度数据
         DataStream<Map<String, Map<String,String>>> funcDim = env.addSource(new FuncMysqlSourceJava()).setParallelism(1).broadcast();
 //从Redis中获取组织维度数据
-        DataStream<HashMap<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(4).broadcast();
+        DataStream<Map<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(4).broadcast();
 
 // 两个流要想被连接在一块，要么两个流都是未分组的，要么都是分组的即keyed-都做了keyby操作；如果都做了keyby，「key的值必须是相同的」
         DataStream<String> resData = kafkalog.connect(funcDim).flatMap(new FuncControlFunction())
