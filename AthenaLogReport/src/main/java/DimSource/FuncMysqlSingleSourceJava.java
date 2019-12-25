@@ -21,7 +21,7 @@ import java.util.Map;
  * @Author Albert
  * Version v0.9
  */
-public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map> {
+public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map<String,Map>> {
 
     private boolean Running = true;
     private PreparedStatement funcps;
@@ -66,6 +66,9 @@ public class FuncMysqlSingleSourceJava extends RichParallelSourceFunction<Map> {
                     resultMap.put("funcMap",funcDimMap);
                     resultMap.put("userMap",userDimMap);
                     sourceContext.collect(resultMap);
+                    Date day=new Date();
+                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+System.out.println("ThreadID-->" + Thread.currentThread().getName() + "  MYSQL_Source is running  " + df.format(day));
                      Thread.sleep(60000);
                 }
             }catch (Exception ex){

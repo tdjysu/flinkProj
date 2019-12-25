@@ -68,7 +68,6 @@ public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,
                 resultMap.put("userMap",userDimMap);
                 sourceContext.collect(resultMap);
                 Date day=new Date();
-
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 System.out.println("ThreadID-->" + Thread.currentThread().getName() + "  MYSQL_Source is running  " + df.format(day));
                 Thread.sleep(10000);

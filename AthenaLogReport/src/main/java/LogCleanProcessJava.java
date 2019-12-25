@@ -75,7 +75,7 @@ public class LogCleanProcessJava {
 //获取原生kafka中的数据
         DataStream<String> kafkalog = env.addSource(kafkaConsumer).setParallelism(4);
 //从Mysql中获取功能维度数据
-        BroadcastStream<Map>funcDim = env.addSource(new FuncMysqlSingleSourceJava()).setParallelism(1).broadcast(funcs_map);
+        BroadcastStream<Map<String,Map>>funcDim = env.addSource(new FuncMysqlSingleSourceJava()).setParallelism(1).broadcast(funcs_map);
 //从Redis中获取组织维度数据
         BroadcastStream <Map<String,String[]>> orgDim = env.addSource(new OrgaRedisSourceJava()).setParallelism(1).broadcast(org_map);
 
@@ -92,7 +92,7 @@ public class LogCleanProcessJava {
 
 
 //  kafka日志补充功能维度数据
-    private static class ControlFunctionProcess extends BroadcastProcessFunction<String, Map, String>{
+    private static class ControlFunctionProcess extends BroadcastProcessFunction<String, Map<String,Map>, String>{
         private MapStateDescriptor  dimsMapStateDescriptor =  new MapStateDescriptor(
                 "dims_map",
                 BasicTypeInfo.STRING_TYPE_INFO,
@@ -101,18 +101,17 @@ public class LogCleanProcessJava {
         @Override
         public void processElement(String input1_value, ReadOnlyContext ctx, Collector<String> out)  {
             try {
-                ReadOnlyBroadcastState dimMap = ctx.getBroadcastState(dimsMapStateDescriptor);
+                ReadOnlyBroadcastState<String, Map> dimMap = ctx.getBroadcastState(dimsMapStateDescriptor);
 //System.out.println( "DimMap.size->" +  dimMap.l);
                 JSONObject originalJSON = JSONObject.parseObject(input1_value);
                 String appId= originalJSON.getString("appId");
                 String userId = originalJSON.getString("userId");
-                String userName= "";//dimMap.get("userMap").get(userId)"";
+                String userName= dimMap.get("userMap").get(userId).toString();
                 String funcId = originalJSON.getString("funcId");
                 String orgCode = originalJSON.getString("orgCode");
                 String orgName = "";
                 String stropDate = originalJSON.getString("opDate");
-                String funcName = null;
-                funcName = "";//dimMap.get(funcId);
+                String funcName =  dimMap.get("funcMap").get(funcId).toString();
                 JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
 //System.out.println(jsondata.toJSONString());
                 out.collect(jsondata.toJSONString());
@@ -122,12 +121,12 @@ public class LogCleanProcessJava {
         }
 
         @Override
-        public void processBroadcastElement(Map mapValue, Context context, Collector<String> collector) throws Exception {
+        public void processBroadcastElement(Map<String,Map> mapValue, Context context, Collector<String> collector) throws Exception {
 //System.out.println("processBroadcastElement is running ");
             BroadcastState<String, Map> dimMap = context.getBroadcastState(dimsMapStateDescriptor);
-//            for (Map.Entry<String, Map> entry : mapValue.entrySet()) {
-//                dimMap.put(entry.getKey(), entry.getValue());
-//            }
+            for (Map.Entry<String, Map> entry : mapValue.entrySet()) {
+                dimMap.put(entry.getKey(), entry.getValue());
+            }
 
         }
     }
@@ -151,7 +150,7 @@ public class LogCleanProcessJava {
                 String userName= cleanJSON.getString("userName");
                 String funcId = cleanJSON.getString("funcId");
                 String orgCode = cleanJSON.getString("orgCode");
-                String orgName =   orgDimMap.get(orgCode)[0];;
+                String orgName =   orgDimMap.get(orgCode) == null ? "" :orgDimMap.get(orgCode)[0];
                 String stropDate = cleanJSON.getString("stropDate");
                 String funcName = cleanJSON.getString("funcName");
 
