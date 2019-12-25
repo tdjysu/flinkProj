@@ -106,12 +106,12 @@ public class LogCleanProcessJava {
                 JSONObject originalJSON = JSONObject.parseObject(input1_value);
                 String appId= originalJSON.getString("appId");
                 String userId = originalJSON.getString("userId");
-                String userName= dimMap.get("userMap").get(userId).toString();
+                String userName= dimMap.get("userMap") == null ? "":dimMap.get("userMap").get(userId).toString();
                 String funcId = originalJSON.getString("funcId");
                 String orgCode = originalJSON.getString("orgCode");
                 String orgName = "";
                 String stropDate = originalJSON.getString("opDate");
-                String funcName =  dimMap.get("funcMap").get(funcId).toString();
+                String funcName =  dimMap.get("funcMap") == null ? "":dimMap.get("funcMap").get(funcId).toString();
                 JSONObject jsondata = geneJSONData(appId,funcId,funcName,stropDate,orgCode,orgName,userId,userName);
 //System.out.println(jsondata.toJSONString());
                 out.collect(jsondata.toJSONString());

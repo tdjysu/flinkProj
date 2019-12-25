@@ -1,3 +1,6 @@
+import DataEntity.LogQueryEntity;
+import ResultDataSink.LogQueryEntityMysqlSink;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -88,24 +91,26 @@ public class LogTableQueryJava {
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-        String querySql = "select appId,funcName,userName,substring(stropDate,1,10) as actionDT,count(1) as pv " +
-                            "from log_table" +
+        String querySql = "select substring(stropDate,1,10) as actionDT,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
+                            " from log_table" +
                             " group by " +
                             " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '20' SECOND )," +
-                            " appId,funcName,userName,substring(stropDate,1,10)"
+                            " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10)"
                             ;
 //
 //                String querySql = "select funcName,count(1) as pv " +
 //                            "from log_table" +
 //                            " group by funcName";
        try {
-//             String querySql = "select * from log_table";
              Table logTable = tableEnv.sqlQuery(querySql);
+//           输出querySql查询结果的表结构
              logTable.printSchema();
+//           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
+             DataStream rowDataStream = tableEnv.toAppendStream(logTable, LogQueryEntity.class);
 
-           DataStream rowDataStream = tableEnv.toRetractStream(logTable,Row.class);
-           rowDataStream.print();
+             rowDataStream.addSink(new LogQueryEntityMysqlSink());
 
+//             rowDataStream.print();
              env.execute(LogTableQueryJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();

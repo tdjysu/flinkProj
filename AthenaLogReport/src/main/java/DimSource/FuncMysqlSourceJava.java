@@ -2,6 +2,7 @@ package DimSource;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.table.expressions.CurrentTime;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +23,7 @@ import java.util.Map;
  * @Author Albert
  * Version v0.9
  */
-public class FuncMysqlSourceJava extends  RichParallelSourceFunction<Map<String,Map<String,String>>> {
+public class FuncMysqlSourceJava extends RichSourceFunction<Map<String,Map<String,String>>> {
 
     private boolean Running = true;
     private PreparedStatement funcps;
