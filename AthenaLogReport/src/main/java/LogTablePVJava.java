@@ -1,6 +1,10 @@
-import DataEntity.LogQueryEntity;
-import ResultDataSink.LogQueryEntityMysqlSink;
-import org.apache.flink.api.common.functions.MapFunction;
+
+import DataEntity.LogPVEntity;
+import ResultDataSink.LogPVEntityMysqlSink;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -14,9 +18,7 @@ import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.types.Row;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+
 import java.sql.Timestamp;
 import java.util.Properties;
 
@@ -27,7 +29,7 @@ import java.util.Properties;
  * @Author Albert
  * Version v0.9
  */
-public class LogTableQueryJava {
+public class LogTablePVJava {
 
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -35,14 +37,13 @@ public class LogTableQueryJava {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 //设置并行度为1
         env.setParallelism(1);
-//注册StreamSetting
-
+//注册StreamSettinga
         EnvironmentSettings fssettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 
 // 注册流表TableEnv
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-//        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
-
+//        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
+//
 //        指定kafka Source
         String topic = "athena_o1";
         String brokerList = "192.168.8.206:9092,192.168.8.207:9092,192.168.8.208:9092";
@@ -91,11 +92,10 @@ public class LogTableQueryJava {
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-        String querySql = "select substring(stropDate,1,10) as actionDT,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
+        String querySql = "select substring(stropDate,1,10) as actionDT,substring(stropDate,12,5) as actionMinu,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
                             " from log_table" +
                             " group by " +
-                            " HOP(rowtime, INTERVAL '30' SECOND, INTERVAL '10' MINUTE )," +
-                            " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10)"
+                            " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10),substring(stropDate,12,5)"
                             ;
 //
 //                String querySql = "select funcName,count(1) as pv " +
@@ -106,12 +106,12 @@ public class LogTableQueryJava {
 //           输出querySql查询结果的表结构
              logTable.printSchema();
 //           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
-             DataStream rowDataStream = tableEnv.toAppendStream(logTable, LogQueryEntity.class);
+             DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogPVEntity.class);
 
-             rowDataStream.addSink(new LogQueryEntityMysqlSink());
+             rowDataStream.addSink(new LogPVEntityMysqlSink());
 
 //             rowDataStream.print();
-             env.execute(LogTableQueryJava.class.getName());
+             env.execute(LogTablePVJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();
            }
