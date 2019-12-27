@@ -8,6 +8,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -36,8 +37,9 @@ public class LogCleanProcessJava {
     final static MapStateDescriptor<String, Map> funcs_map = new MapStateDescriptor<String, Map>(
             "dims_map",
             BasicTypeInfo.STRING_TYPE_INFO,
-            TypeInformation.of(Map.class)
+            new MapTypeInfo(String.class,String.class)
     );
+
 
     final static MapStateDescriptor<String, String[]> org_map = new MapStateDescriptor<String, String[]>(
             "org_map",

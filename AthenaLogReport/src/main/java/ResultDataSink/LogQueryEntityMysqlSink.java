@@ -31,7 +31,7 @@ public class LogQueryEntityMysqlSink extends RichSinkFunction<LogQueryEntity> {
                 ps.setString(3,logEntity.getFuncId());
                 ps.setString(4,logEntity.getFuncName());
                 ps.setString(5,logEntity.getOrgCode());
-                ps.setString(6,logEntity.getOrgCode());
+                ps.setString(6,logEntity.getOrgName());
                 ps.setLong(7,logEntity.getLogPV());
                 ps.setLong(8,logEntity.getLogUV());
                 ps.executeUpdate();

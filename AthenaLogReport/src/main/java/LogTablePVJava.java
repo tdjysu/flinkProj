@@ -108,32 +108,12 @@ public class LogTablePVJava {
 //           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
              DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogPVEntity.class);
 
-             rowDataStream.addSink(new LogPVEntityMysqlSink());
-
-//             rowDataStream.print();
+//             rowDataStream.addSink(new LogPVEntityMysqlSink());
+             rowDataStream.print();
              env.execute(LogTablePVJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();
            }
-
-
-
     }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class logPOJO {
-
-        public String appId;
-        public String funcId;
-        public String funcName;
-        public String stropDate;
-        public String orgCode;
-        public String orgName;
-        public String userId;
-
-        public String userName;
-        public Timestamp rowtime;
-    }
 }
