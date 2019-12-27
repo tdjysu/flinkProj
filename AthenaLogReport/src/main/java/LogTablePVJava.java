@@ -92,24 +92,26 @@ public class LogTablePVJava {
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-        String querySql = "select substring(stropDate,1,10) as actionDT,substring(stropDate,12,5) as actionMinu,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
+        String querySql = "select substring(stropDate,9,2) as actionDT,substring(stropDate,12,5) as actionMinu,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
                             " from log_table" +
                             " group by " +
-                            " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10),substring(stropDate,12,5)"
+                            " HOP(rowtime, INTERVAL '3' SECOND, INTERVAL '70' SECOND )," +
+                            " appId,funcId,funcName,orgCode,orgName,substring(stropDate,9,2),substring(stropDate,12,5)"
                             ;
 //
 //                String querySql = "select funcName,count(1) as pv " +
 //                            "from log_table" +
 //                            " group by funcName";
        try {
+
              Table logTable = tableEnv.sqlQuery(querySql);
 //           输出querySql查询结果的表结构
              logTable.printSchema();
 //           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
              DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogPVEntity.class);
 
-//             rowDataStream.addSink(new LogPVEntityMysqlSink());
-             rowDataStream.print();
+             rowDataStream.addSink(new LogPVEntityMysqlSink());
+//             rowDataStream.print();
              env.execute(LogTablePVJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();

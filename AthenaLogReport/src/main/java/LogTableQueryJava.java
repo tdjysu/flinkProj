@@ -94,7 +94,7 @@ public class LogTableQueryJava {
         String querySql = "select substring(stropDate,1,10) as actionDT,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
                             " from log_table" +
                             " group by " +
-                            " HOP(rowtime, INTERVAL '30' SECOND, INTERVAL '10' MINUTE )," +
+                            " HOP(rowtime, INTERVAL '5' MINUTE, INTERVAL '60' MINUTE )," +
                             " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10)"
                             ;
 //
