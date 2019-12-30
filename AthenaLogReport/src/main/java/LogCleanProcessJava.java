@@ -1,3 +1,5 @@
+
+
 import DimSource.FuncMysqlSingleSourceJava;
 import DimSource.FuncMysqlSourceJava;
 import DimSource.OrgaRedisSourceJava;
@@ -63,19 +65,19 @@ public class LogCleanProcessJava {
         outProp.setProperty("transaction.timeout.ms",60000*15+"");
 
         //checkpoint配置
-        env.enableCheckpointing(5000);//每5秒检查一次
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);//最小检查间隔 30秒
-        env.getCheckpointConfig().setCheckpointTimeout(60000);
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+//        env.enableCheckpointing(5000);//每5秒检查一次
+//        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+//        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);//最小检查间隔 30秒
+//        env.getCheckpointConfig().setCheckpointTimeout(60000);
+//        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 //设置kafka消费者
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
 //       从最新数据开始消费
         kafkaConsumer.setStartFromLatest();
 //获取原生kafka中的数据
-        DataStream<String> kafkalog = env.addSource(kafkaConsumer).setParallelism(4);
+        DataStream<String> kafkalog = env.addSource(kafkaConsumer).setParallelism(1);
 //从Mysql中获取功能维度数据
         BroadcastStream<Map<String,Map>>funcDim = env.addSource(new FuncMysqlSingleSourceJava()).setParallelism(1).broadcast(funcs_map);
 //从Redis中获取组织维度数据
