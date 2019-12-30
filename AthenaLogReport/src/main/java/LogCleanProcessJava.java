@@ -22,8 +22,11 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
+import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.Collector;
 
+import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -41,6 +44,10 @@ public class LogCleanProcessJava {
             BasicTypeInfo.STRING_TYPE_INFO,
             new MapTypeInfo(String.class,String.class)
     );
+
+
+
+
 
 
     final static MapStateDescriptor<String, String[]> org_map = new MapStateDescriptor<String, String[]>(
@@ -63,6 +70,27 @@ public class LogCleanProcessJava {
         Properties outProp = new Properties();
         outProp.setProperty("bootstrap.servers",brokerList);
         outProp.setProperty("transaction.timeout.ms",60000*15+"");
+
+System.out.println("TableFactoryService is running");
+        TableFactoryService tfs = new TableFactoryService();
+        Class ts1 = tfs.getClass();
+        Method[] methodArray = ts1.getDeclaredMethods();
+        System.out.println("Factory List" + methodArray.length);
+        for(Method m:methodArray){
+            System.out.println("Method name -->" + m.getName() );
+            if( "discoverFactories".equals( m.getName())){
+                Method method = m;
+                method.setAccessible(true);
+                List<TableFactory> myList = (List<TableFactory>) method.invoke(tfs,java.util.Optional.empty());
+                for(TableFactory f:myList){
+                    if("Kafka010TableSourceSinkFactory".equals(f.getClass().getSimpleName())){
+                        Map mpp = f.requiredContext();
+                        System.out.println("Kafka010TableSourceSinkFactory --> " + mpp.toString());
+                    }
+                }
+            }
+        }
+
 
         //checkpoint配置
 //        env.enableCheckpointing(5000);//每5秒检查一次
@@ -126,7 +154,7 @@ public class LogCleanProcessJava {
 
         @Override
         public void processBroadcastElement(Map<String,Map> mapValue, Context context, Collector<String> collector) throws Exception {
-//System.out.println("processBroadcastElement is running ");
+System.out.println("processBroadcastElement is running ");
             BroadcastState<String, Map> dimMap = context.getBroadcastState(dimsMapStateDescriptor);
             for (Map.Entry<String, Map> entry : mapValue.entrySet()) {
                 dimMap.put(entry.getKey(), entry.getValue());

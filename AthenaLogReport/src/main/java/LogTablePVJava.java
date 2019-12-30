@@ -37,6 +37,7 @@ import java.util.Properties;
 public class LogTablePVJava {
 
     public static void main(String[] args) throws Exception{
+System.out.println("LogTablePVJava is running ");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //      在系统中指定EventTime概念
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
