@@ -27,7 +27,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.Collector;
 
 import java.lang.reflect.Method;
-import java.sql.Timestamp;
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -44,10 +44,6 @@ public class LogCleanProcessJava {
             BasicTypeInfo.STRING_TYPE_INFO,
             new MapTypeInfo(String.class,String.class)
     );
-
-
-
-
 
 
     final static MapStateDescriptor<String, String[]> org_map = new MapStateDescriptor<String, String[]>(
@@ -71,25 +67,7 @@ public class LogCleanProcessJava {
         outProp.setProperty("bootstrap.servers",brokerList);
         outProp.setProperty("transaction.timeout.ms",60000*15+"");
 
-System.out.println("TableFactoryService is running");
-        TableFactoryService tfs = new TableFactoryService();
-        Class ts1 = tfs.getClass();
-        Method[] methodArray = ts1.getDeclaredMethods();
-        System.out.println("Factory List" + methodArray.length);
-        for(Method m:methodArray){
-            System.out.println("Method name -->" + m.getName() );
-            if( "discoverFactories".equals( m.getName())){
-                Method method = m;
-                method.setAccessible(true);
-                List<TableFactory> myList = (List<TableFactory>) method.invoke(tfs,java.util.Optional.empty());
-                for(TableFactory f:myList){
-                    if("Kafka010TableSourceSinkFactory".equals(f.getClass().getSimpleName())){
-                        Map mpp = f.requiredContext();
-                        System.out.println("Kafka010TableSourceSinkFactory --> " + mpp.toString());
-                    }
-                }
-            }
-        }
+
 
 
         //checkpoint配置
@@ -218,10 +196,13 @@ System.out.println("processBroadcastElement is running ");
             jsonobj.put("orgName",orgName);
             jsonobj.put("userId",userId);
             jsonobj.put("userName",userName);
-            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            SimpleDateFormat UTC_format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            UTC_format.setTimeZone(TimeZone.getTimeZone("UTC"));
             SimpleDateFormat dayformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+
             Date day = dayformat.parse(stropDate);
-            String str = format.format(day);
+            String str = UTC_format.format(day);
             jsonobj.put("logoptime", str);
         } catch (Exception e){
             e.printStackTrace();
@@ -230,6 +211,5 @@ System.out.println("processBroadcastElement is running ");
 
         return  jsonobj;
     }
-
 
 }

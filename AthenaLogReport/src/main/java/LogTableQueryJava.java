@@ -2,6 +2,7 @@ import DataEntity.LogQueryEntity;
 import ResultDataSink.LogQueryEntityMysqlSink;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -34,14 +35,14 @@ public class LogTableQueryJava {
         //      在系统中指定EventTime概念
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 //设置并行度为1
-        env.setParallelism(1);
+        env.setParallelism(3);
 //注册StreamSetting
 
         EnvironmentSettings fssettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 
 // 注册流表TableEnv
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-//        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
+//        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env,fssettings);
 
 //        指定kafka Source
         String topic = "athena_o1";
@@ -66,7 +67,7 @@ public class LogTableQueryJava {
 
         //      checkpoint配置
         env.enableCheckpointing(5000);//每5秒检查一次
-//        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);//最小检查间隔 30秒
         env.getCheckpointConfig().setCheckpointTimeout(60000);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
@@ -91,26 +92,25 @@ public class LogTableQueryJava {
                 )
                 .inAppendMode()//指定数据更新模式为AppendMode,即仅交互insert操作更新数据
                 .registerTableSource("log_table");//注册表名为log_table
-        String querySql = "select substring(stropDate,1,10) as actionDT,appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
+        String querySql = "select substring(stropDate,1,10) as actionDT" +
+                ",appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
                             " from log_table" +
                             " group by " +
-                            " HOP(rowtime, INTERVAL '5' MINUTE, INTERVAL '60' MINUTE )," +
+                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '60' SECOND )," +
                             " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10)"
                             ;
-//
-//                String querySql = "select funcName,count(1) as pv " +
-//                            "from log_table" +
-//                            " group by funcName";
+//        MINUTE
+
        try {
              Table logTable = tableEnv.sqlQuery(querySql);
 //           输出querySql查询结果的表结构
              logTable.printSchema();
 //           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
-             DataStream rowDataStream = tableEnv.toAppendStream(logTable, LogQueryEntity.class);
+             DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogQueryEntity.class);
 
              rowDataStream.addSink(new LogQueryEntityMysqlSink());
 
-//             rowDataStream.print();
+             rowDataStream.print();
              env.execute(LogTableQueryJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();
@@ -118,22 +118,5 @@ public class LogTableQueryJava {
 
 
 
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class logPOJO {
-
-        public String appId;
-        public String funcId;
-        public String funcName;
-        public String stropDate;
-        public String orgCode;
-        public String orgName;
-        public String userId;
-
-        public String userName;
-        public Timestamp rowtime;
     }
 }

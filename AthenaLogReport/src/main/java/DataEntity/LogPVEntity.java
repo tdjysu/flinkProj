@@ -4,11 +4,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.sql.Timestamp;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class LogPVEntity {
     private String actionDT;
+    private Timestamp start_time;
+    private Timestamp end_time;
     private String actionMinu;
     private String appId;
     private String funcId;
@@ -17,10 +21,12 @@ public class LogPVEntity {
     private String orgName;
     private Long logPV;
     private Long logUV;
+
+
+
     public String getActionDT() {
         return actionDT;
     }
-
     public void setActionDT(String actionDT) {
         this.actionDT = actionDT;
     }
@@ -88,4 +94,21 @@ public class LogPVEntity {
     public void setActionMinu(String actionMinu) {
         this.actionMinu = actionMinu;
     }
+
+    public Timestamp getStart_time() {
+        return start_time;
+    }
+
+    public void setStart_time(Timestamp start_time) {
+        this.start_time = start_time;
+    }
+
+    public Timestamp getEnd_time() {
+        return end_time;
+    }
+
+    public void setEnd_time(Timestamp end_time) {
+        this.end_time = end_time;
+    }
+
 }
