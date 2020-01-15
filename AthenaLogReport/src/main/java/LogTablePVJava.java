@@ -107,8 +107,8 @@ public class LogTablePVJava {
 //             tableEnv.toRetractStream(logTable, Row.class).print();
              DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogPVEntity.class);
 
-//             rowDataStream.addSink(new LogPVEntityMysqlSink());
-             rowDataStream.print();
+             rowDataStream.addSink(new LogPVEntityMysqlSink());
+//             rowDataStream.print();
 
              env.execute(LogTablePVJava.class.getName());
 

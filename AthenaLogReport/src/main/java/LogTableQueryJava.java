@@ -96,7 +96,7 @@ public class LogTableQueryJava {
                 ",appId,funcId,funcName,orgCode,orgName,count(1) as logPV, count(distinct userId) as logUV" +
                             " from log_table" +
                             " group by " +
-                            " HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '60' SECOND )," +
+                            " HOP(rowtime, INTERVAL '5' MINUTE, INTERVAL '60' MINUTE )," +
                             " appId,funcId,funcName,orgCode,orgName,substring(stropDate,1,10)"
                             ;
 //        MINUTE
@@ -107,16 +107,11 @@ public class LogTableQueryJava {
              logTable.printSchema();
 //           将querySql的执行结果用Retract的模式打印输出  tableEnv.toRetractStream(logTable,Row.class);
              DataStream rowDataStream = tableEnv.toRetractStream(logTable, LogQueryEntity.class);
-
              rowDataStream.addSink(new LogQueryEntityMysqlSink());
-
-             rowDataStream.print();
+//             rowDataStream.print();
              env.execute(LogTableQueryJava.class.getName());
            } catch (Exception e) {
             e.printStackTrace();
            }
-
-
-
     }
 }

@@ -96,7 +96,7 @@ public class LogCleanProcessJava {
 
 //将最终结果输出到kafka
         FlinkKafkaProducer010<String> myProducer = new FlinkKafkaProducer010<String>(outTopic,new KeyedSerializationSchemaWrapper<String>(new SimpleStringSchema()),outProp);
-        resData.addSink(myProducer);
+        resData.addSink(myProducer).setParallelism(3);
         env.execute(LogCleanProcessJava.class.getName());
     }
 
@@ -132,7 +132,7 @@ public class LogCleanProcessJava {
 
         @Override
         public void processBroadcastElement(Map<String,Map> mapValue, Context context, Collector<String> collector) throws Exception {
-System.out.println("processBroadcastElement is running ");
+//System.out.println("processBroadcastElement is running ");
             BroadcastState<String, Map> dimMap = context.getBroadcastState(dimsMapStateDescriptor);
             for (Map.Entry<String, Map> entry : mapValue.entrySet()) {
                 dimMap.put(entry.getKey(), entry.getValue());
