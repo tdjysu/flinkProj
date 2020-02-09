@@ -1,6 +1,7 @@
 
 
 import com.alibaba.fastjson.JSONObject;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -51,19 +52,26 @@ public class LogAlterProcessJava {
 
 
 //        checkpoint配置
-        env.enableCheckpointing(5000);//每5秒检查一次
+        env.enableCheckpointing(5000);//每5秒设置检查点一次
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);//最小检查间隔 30秒
-        env.getCheckpointConfig().setCheckpointTimeout(60000);
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+        env.getCheckpointConfig().setCheckpointTimeout(60000);//设置检查点存储超时时间
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);//设置最大同时进行checkpoint数量
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(100);//设置checkpoint最小间隔
+//      设置外部持久化存储规则 ，DELETE_ON_CANCELLATION 表示手动停止任务时会清理掉checkpoint,  RETAIN_ON_CANCELLATION) 手动停止任务不会清理checkpoint
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+//       设置重启策略 fixedDelayRestart 固定延迟重启，重启3次，每次间隔500毫秒
+//            failureRateRestart 失败率重启策略 失败率重启策略在Job失败后会重启，但是超过失败率后，Job会最终被认定失败
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3,500));
+
 
 //设置kafka消费者
         FlinkKafkaConsumer010 kafkaConsumer = new FlinkKafkaConsumer010<String>(topic,new SimpleStringSchema(),prop);
 //       从最新数据开始消费
         kafkaConsumer.setStartFromLatest();
 //获取kafka中的数据,并根据用户ID形成KeyedStream
-         KeyedStream<String,String> kafkalog = env.addSource(kafkaConsumer).assignTimestampsAndWatermarks(new AthenaLogWaterMark()).setParallelism(3).keyBy(new KeySelector<String,String>() {
+         KeyedStream<String,String> kafkalog = env.addSource(kafkaConsumer).assignTimestampsAndWatermarks(new AthenaLogWaterMark()).setParallelism(3)
+                 .keyBy(new KeySelector<String,String>() {
             @Override
             public String getKey(String value) throws Exception {
                 JSONObject jsonObj = JSONObject.parseObject(value);
@@ -72,7 +80,7 @@ public class LogAlterProcessJava {
             }
         });
 
-        kafkalog.process( new AlterProcess()).print("AlterInfo");
+        kafkalog.process( new AlterProcess()).print("AlterInfo--> ");
 
         env.execute(LogAlterProcessJava.class.getName());
     }
@@ -84,13 +92,12 @@ public class LogAlterProcessJava {
 
     private static class AlterProcess extends KeyedProcessFunction<String,String,String> {
 
-
-        //     定义状态，保存每个功能对应的用户列表
+        //     定义状态，保存每个用户对应的功能列表
         private MapStateDescriptor funcUserMapStateDescriptor =  new MapStateDescriptor(
                 "funcUser_map",
                 BasicTypeInfo.STRING_TYPE_INFO,
                 TypeInformation.of(Map.class));
-
+//定义每个用户对应的报警时间戳
         private ValueStateDescriptor currentTimerValueStateDesciptor =  new ValueStateDescriptor(
                 "currentTime",
                 TypeInformation.of(Long.class));
@@ -110,20 +117,25 @@ public class LogAlterProcessJava {
             JSONObject jsonObj = JSONObject.parseObject(value);
             String userID = jsonObj.getString("userId");
             String funcID = jsonObj.getString("funcId");
-//            先取出用户对应的功能列表
+//            先取出用户上一次点击对应的功能列表
             Map funcsMap = funcUsersMapState.get(userID) == null ? new HashMap():funcUsersMapState.get(userID);
+//            将本次用户点击功能加入用户对应的功能列表
             funcsMap.put(funcID,funcID);
+//            更新用户对应功能的状态值
             funcUsersMapState.put(userID,funcsMap);
 //            取出用户上条记录的定时器的时间戳
             long currentTimerTs = currentTimer.value() == null ? 0 :currentTimer.value();
-//           如果获取到的用户对应功能Map为空且没有注册过定时器 ，则创建定时器
-            if(currentTimerTs == 0 ){
+//           如果获取到的用户对应功能Map大小 > 1且没有注册过定时器 ，则创建定时器
+            if(currentTimerTs == 0 && funcsMap.size() > 1 ){
 //          定义定时器为1秒,注意参数是时间戳，不是延迟时间长度
                 long timerTs = ctx.timerService().currentWatermark() + 1000L;
-
                 ctx.timerService().registerEventTimeTimer(timerTs);
 //              更新用户定时器时间戳
                 currentTimer.update(timerTs);
+            }
+//            如果用户对应的功能是相同的，即Map大小为1，或者 第一条数据用户对应功能Map为空，则删除定时器
+            else if(funcsMap.size() == 1 || funcsMap.isEmpty()){
+                ctx.timerService().deleteEventTimeTimer(currentTimer.value() == null ? 0 :currentTimer.value());
             }
         }
 
@@ -131,10 +143,10 @@ public class LogAlterProcessJava {
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
             super.onTimer(timestamp, ctx, out);
 //          输出报警信息
-            out.collect("user_id --> " + ctx.getCurrentKey() + "被他人盗用");
-System.out.println("user_id --> " + ctx.getCurrentKey() + "被他人盗用");
+            out.collect("user_id --> " + ctx.getCurrentKey() + " 被他人盗用");
+//System.out.println("user_id --> " + ctx.getCurrentKey() + "被他人盗用");
 //          清空状态数据，释放资源
-            funcUsersMapState.clear();
+//            funcUsersMapState.clear();
             currentTimer.clear();
         }
     }
